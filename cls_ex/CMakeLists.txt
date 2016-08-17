@@ -1,32 +1,23 @@
-project(cls VERSION 0.1 LANGUAGES CXX)
+project(cls_ex VERSION 0.1 LANGUAGES CXX)
 
-add_library(libcls INTERFACE)
+add_library(libcls_ex INTERFACE)
 
 #---------------------------------------------------------------------------------------------------
 # Define headers for this library
 #---------------------------------------------------------------------------------------------------
-target_include_directories(libcls
+target_include_directories(libcls_ex
   INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   INTERFACE $<INSTALL_INTERFACE:include>
 )
 
-#---------------------------------------------------------------------------------------------------
-# List compiler features requirements
-#---------------------------------------------------------------------------------------------------
-# target_compile_features(cls
-#   PRIVATE cxx_auto_type
-#   PRIVATE cxx_variadic_templates
-# )
-
-# Depend on a library that we defined in the top-level file
-target_link_libraries(libcls
-  INTERFACE libboost
+target_link_libraries(libcls_ex
+  INTERFACE libcls
 )
 
 #---------------------------------------------------------------------------------------------------
 # Specify installation location
 #---------------------------------------------------------------------------------------------------
-install(TARGETS libcls
+install(TARGETS libcls_ex
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
@@ -36,17 +27,13 @@ install(DIRECTORY include/ DESTINATION include)
 #---------------------------------------------------------------------------------------------------
 # Make project importable from the build directory
 #---------------------------------------------------------------------------------------------------
-export(TARGETS libcls FILE CLSConfig.cmake)
+export(TARGETS libcls_ex FILE CLSConfig.cmake)
 
 #---------------------------------------------------------------------------------------------------
 # Unit tests
 #---------------------------------------------------------------------------------------------------
-add_executable(test_cls
+add_executable(test_cls_ex
   test/main.cpp
-  test/test.cpp
-  test/example.cpp
 )
 
-target_link_libraries(test_cls libcls libcatch)
-
-add_test(test_cls test_cls)
+target_link_libraries(test_cls_ex libcls_ex libcatch)

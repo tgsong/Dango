@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
-project(cls VERSION 0.1 LANGUAGES CXX)
+project(Dango VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -12,7 +12,7 @@ list(APPEND CMAKE_MODULE_PATH
 #---------------------------------------------------------------------------------------------------
 # Include necessary libraries as imported targets
 #---------------------------------------------------------------------------------------------------
-find_package(Boost 1.61 REQUIRED COMPONENTS program_options timer chrono filesystem)
+find_package(Boost 1.59 REQUIRED COMPONENTS program_options timer chrono filesystem)
 add_library(libboost INTERFACE IMPORTED)
 set_property(TARGET libboost PROPERTY
   INTERFACE_INCLUDE_DIRECTORIES ${Boost_INCLUDE_DIRS}
@@ -70,4 +70,5 @@ add_subdirectory(libs/catch EXCLUDE_FROM_ALL)
 #---------------------------------------------------------------------------------------------------
 enable_testing()
 add_subdirectory(cls)
+add_subdirectory(cls_ex)
 add_subdirectory(app)

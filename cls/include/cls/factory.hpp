@@ -138,7 +138,7 @@ public:
     static bool addType(const IDType& id, const Creator<CtorArgs...>& creator)
     {
         auto& obj_factory = ObjFactory<CtorArgs...>::instance();
-        auto success =  obj_factory.addType(id, creator);
+        auto success =  obj_factory.template addType(id, creator);
         if (success) {
             instance().obj_factory_vec[id].emplace_back(&obj_factory);
         }

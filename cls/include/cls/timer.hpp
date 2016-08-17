@@ -25,9 +25,11 @@
 #ifndef CLS_TIMER_HPP
 #define CLS_TIMER_HPP
 
+#include <array>
 #include <chrono>
 #include <mutex>
 #include <cstdio>
+#include <cmath>
 #include "string.hpp"
 
 
@@ -38,7 +40,7 @@ using high_res_clock = chrono::high_resolution_clock;
 const array<const char*, 4> suffixes = { "ns", "us", "ms", "s" };
 const int clock_unit = 1000;
 
-void printDuration(const high_res_clock::duration& t, int precision = 0)
+inline void printDuration(const high_res_clock::duration& t, int precision = 0)
 {
     auto count = chrono::duration_cast<chrono::nanoseconds>(t).count();
     size_t exp = 0;
@@ -51,7 +53,7 @@ void printDuration(const high_res_clock::duration& t, int precision = 0)
     printf("%.*f%s", precision, count_num, count_unit);
 }
 
-std::string formatDuration(const chrono::milliseconds& t, int precision = 0)
+inline std::string formatDuration(const chrono::milliseconds& t, int precision = 0)
 {
     auto count = chrono::duration_cast<chrono::nanoseconds>(t).count();
     size_t exp = 0;
