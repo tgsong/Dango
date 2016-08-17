@@ -4,4 +4,4 @@ add_executable(app
   src/main.cpp
 )
 
-target_link_libraries(app libcls)
+target_link_libraries(app libcls libboost)

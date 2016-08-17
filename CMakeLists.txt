@@ -12,13 +12,19 @@ list(APPEND CMAKE_MODULE_PATH
 #---------------------------------------------------------------------------------------------------
 # Include necessary libraries as imported targets
 #---------------------------------------------------------------------------------------------------
+find_path(GSL_INCLUDE_DIRS gsl PATH_SUFFIXES GSL)
+add_library(libgsl INTERFACE IMPORTED)
+set_property(TARGET libgsl PROPERTY
+  INTERFACE_INCLUDE_DIRECTORIES ${GSL_INCLUDE_DIRS}
+)
+
 find_package(Boost 1.59 REQUIRED COMPONENTS program_options timer chrono filesystem)
 add_library(libboost INTERFACE IMPORTED)
 set_property(TARGET libboost PROPERTY
   INTERFACE_INCLUDE_DIRECTORIES ${Boost_INCLUDE_DIRS}
 )
 set_property(TARGET libboost PROPERTY
-  INTERFACE_LINK_LIBRARIES Boost::program_options Boost::timer Boost::chrono Boost::filesystem
+  INTERFACE_LINK_LIBRARIES Boost::disable_autolinking Boost::program_options Boost::timer Boost::chrono Boost::filesystem
 )
 
 # find_package(OpenCV)
@@ -61,14 +67,13 @@ set_property(TARGET libboost PROPERTY
 # )
 
 #---------------------------------------------------------------------------------------------------
-# External 3rd party libs
+# External 3rdparty libs, not part of the interface of any module
 #---------------------------------------------------------------------------------------------------
-add_subdirectory(libs/catch EXCLUDE_FROM_ALL)
+add_subdirectory(3rdparty EXCLUDE_FROM_ALL)
 
 #---------------------------------------------------------------------------------------------------
 # Targets that we develop
 #---------------------------------------------------------------------------------------------------
-enable_testing()
 add_subdirectory(cls)
 add_subdirectory(cls_ex)
 add_subdirectory(app)

@@ -27,12 +27,14 @@ install(DIRECTORY include/ DESTINATION include)
 #---------------------------------------------------------------------------------------------------
 # Make project importable from the build directory
 #---------------------------------------------------------------------------------------------------
-export(TARGETS libcls_ex FILE CLSConfig.cmake)
+export(TARGETS libcls_ex FILE CLSexConfig.cmake)
 
 #---------------------------------------------------------------------------------------------------
 # Unit tests
 #---------------------------------------------------------------------------------------------------
 add_executable(test_cls_ex
+  include/cls_ex/allocator.h
+  include/cls_ex/deque.h
   test/main.cpp
 )
 

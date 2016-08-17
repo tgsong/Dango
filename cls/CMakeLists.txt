@@ -20,18 +20,19 @@ target_include_directories(libcls
 
 # Depend on a library that we defined in the top-level file
 target_link_libraries(libcls
-  INTERFACE libboost
+  INTERFACE libgsl
 )
 
 #---------------------------------------------------------------------------------------------------
 # Specify installation location
 #---------------------------------------------------------------------------------------------------
-install(TARGETS libcls
+install(TARGETS libcls EXPORT CLSConfig
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
 )
 install(DIRECTORY include/ DESTINATION include)
+install(EXPORT CLSConfig DESTINATION share/CLS)
 
 #---------------------------------------------------------------------------------------------------
 # Make project importable from the build directory
