@@ -1,7 +1,0 @@
-project(Catch VERSION 1.5.6 LANGUAGES CXX)
-
-add_library(libcatch INTERFACE)
-
-set_property(TARGET libcatch PROPERTY
-  INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
