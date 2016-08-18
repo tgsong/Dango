@@ -126,7 +126,7 @@ public:
     static bool addType(const IDType& id)
     {
         auto& obj_factory = ObjFactory<CtorArgs...>::instance();
-        auto success =  obj_factory.addType<Derived>(id);
+        auto success =  obj_factory.template addType<Derived>(id);
         if (success) {
             instance().obj_factory_vec[id].emplace_back(&obj_factory);
         }
