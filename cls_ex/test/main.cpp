@@ -22,10 +22,17 @@
 // SOFTWARE.
 /////////////////////////////////////////////////////////////////////////////////
 
-// #include <cls_ex/deque.h>
-#include <gsl/span>
+#include <iostream>
+#include <cls_ex/deque.h>
 
 int main(int argc, char* argv[])
 {
+    cls::Deque<int> d;
+    std::cout << d.size() << std::endl;
+
+    for (auto i = 0; i < 1e5; ++i) {
+        d.emplace_back(i);
+    }
+
     return 0;
 }

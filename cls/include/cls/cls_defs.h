@@ -25,6 +25,9 @@
 #ifndef CLS_DEFS_H
 #define CLS_DEFS_H
 
+// Guideline Support Library
+#include <gsl/gsl>
+
 #define _CLS_BEGIN      namespace cls {
 #define _CLS_END        }
 

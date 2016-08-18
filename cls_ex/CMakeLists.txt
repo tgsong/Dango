@@ -11,7 +11,7 @@ target_include_directories(libcls_ex
 )
 
 target_link_libraries(libcls_ex
-  INTERFACE libcls
+  INTERFACE libcls libboost
 )
 
 #---------------------------------------------------------------------------------------------------
