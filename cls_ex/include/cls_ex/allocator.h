@@ -24,12 +24,18 @@
 
 #pragma once
 
+#include <thread>
 #include <boost/align/aligned_alloc.hpp>
 #include <cls/cls_defs.h>
 
 _CLS_BEGIN
 constexpr size_t MIN_ALIGNMENT = 16;
 constexpr size_t PLAT_PTR_SIZE = sizeof(void*);
+
+#ifndef NDEBUG
+// Track memory allocation, detect leak
+static thread_local size_t g_allocate_size = 0;
+#endif
 
 template <typename T>
 struct has_trivial_relocate : std::integral_constant<bool, std::is_pod<T>::value && !std::is_volatile<T>::value> {};
@@ -75,42 +81,76 @@ inline bool operator!=(const DefaultAllocator& a, const DefaultAllocator& b)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 template <typename Alloc>
-void* alloc_memory(Alloc& alloc, size_t n, size_t alignment, size_t align_offset = 0)
+void* alloc_memory(Alloc* alloc, size_t n, size_t alignment)
 {
+#ifndef NDEBUG
+    g_allocate_size += n;
+    // printf("Allocate %d bytes\n", n);
+#endif
+
     if (alignment <= MIN_ALIGNMENT) {
-        return alloc.allocate(n);
+        return alloc->allocate(n);
     }
 
-    return alloc.allocate(n, alignment);
+    return alloc->allocate(n, alignment);
 }
+
+template <typename Alloc>
+void* alloc_memory(Alloc& alloc, size_t n, size_t alignment)
+{
+    return alloc_memory(&alloc, n, alignment);
+}
+
+template <typename T, typename Alloc>
+T* alloc_array(Alloc* alloc, size_t array_size)
+{
+    return static_cast<T*>(alloc_memory(alloc, array_size * sizeof(T), alignof(T)));
+};
 
 template <typename T, typename Alloc>
 T* alloc_array(Alloc& alloc, size_t array_size)
 {
-    return static_cast<T*>(alloc_memory(alloc, array_size * sizeof(T), alignof(T)));;
+    return alloc_array<T>(&alloc, array_size);
 };
+
+template <typename Alloc>
+void dealloc_memory(Alloc* alloc, void* p, size_t n)
+{
+#ifndef NDEBUG
+    g_allocate_size -= n;
+    if (g_allocate_size == 0) {
+        std::printf("Thread %d, No leak occurred.\n", std::this_thread::get_id());
+    }
+#endif
+
+    alloc->deallocate(p, n);
+}
 
 template <typename Alloc>
 void dealloc_memory(Alloc& alloc, void* p, size_t n)
 {
-    alloc.deallocate(p, n);
+    dealloc_memory(&alloc, p, n);
 }
 
 template <typename T, typename Alloc>
-void dealloc_array(Alloc& alloc, gsl::span<T> array)
+void dealloc_array(Alloc* alloc, gsl::span<T> array)
 {
     dealloc_memory(alloc, array.data(), array.size() * sizeof(T));
 };
 
-template<typename Alloc>
-Allocator* get_allocator()
+template <typename T, typename Alloc>
+void dealloc_array(Alloc& alloc, gsl::span<T> array)
 {
-    static Alloc alloc;
-    return &alloc;
-}
+    dealloc_array<T>(&alloc, array);
+};
+
+Allocator* get_allocator();
+void set_allocator(Allocator*);
+void set_allocator(std::unique_ptr<Allocator>&&);
 
 inline Allocator* get_default_allocator()
 {
-    return get_allocator<DefaultAllocator>();
+    static DefaultAllocator alloc;
+    return &alloc;
 }
 _CLS_END

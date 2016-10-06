@@ -713,6 +713,12 @@ public:
         resize(n, value_type {});
     }
 
+
+    void reserve(size_type n)
+    {
+        set_capacity(n);
+    }
+
     void shrink_to_fit()
     {
         // TODO, shrink_to_fit(), doing nothing for now

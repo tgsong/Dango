@@ -22,42 +22,25 @@
 // SOFTWARE.
 /////////////////////////////////////////////////////////////////////////////////
 
-#include <iostream>
-#include <future>
-#include <boost/container/small_vector.hpp>
-#include <cls_ex/deque_x.h>
-#include <cls_ex/deque.h>
+#include <cls_ex/allocator.h>
 
-struct Foo {
-    int b = 4;
-};
-
-using Subarray = cls::detail::SubarrayT<Foo, 4, cls::Allocator>;
-
-int main(int argc, char* argv[])
-{
-//    cls::Deque<int> d;
-//    std::cout << d.size() << std::endl;
-//
-//    for (auto i = 0; i < 1e5; ++i) {
-//        d.emplace_back(i);
-//    }
-
-    boost::container::small_vector<std::future<void>, 8> tasks;
-    for (int i = 0; i < 1; ++i) {
-        tasks.emplace_back(std::async(std::launch::async, [](){
-            std::vector<std::unique_ptr<Subarray>> m_ptr_array;
-            m_ptr_array.resize(2);
-            for (auto& elem : m_ptr_array) {
-                elem = std::make_unique<Subarray>();
-                elem->construct(0);
-                elem->destruct(0);
-            }
-        }));
-    }
-    for (auto& elem : tasks) {
-        elem.get();
-    }
-
-    return 0;
+_CLS_BEGIN
+namespace detail {
+static std::unique_ptr<Allocator> active_allocator = std::make_unique<DefaultAllocator>();
 }
+
+Allocator* get_allocator()
+{
+    return detail::active_allocator.get();
+}
+
+void set_allocator(Allocator* alloc)
+{
+    detail::active_allocator.reset(alloc);
+}
+
+void set_allocator(std::unique_ptr<Allocator>&& alloc)
+{
+    detail::active_allocator = std::move(alloc);
+}
+_CLS_END
