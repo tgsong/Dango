@@ -42,19 +42,19 @@
 
 #include "cls_defs.h"
 
-_CLS_BEGIN
-typedef istreambuf_iterator<char> ifsbuf_iter;
+CLS_BEGIN
+typedef std::istreambuf_iterator<char> ifsbuf_iter;
 
-class FileExcept :public runtime_error
+class FileExcept :public std::runtime_error
 {
 public:
-    FileExcept(const string& err_msg) :runtime_error(err_msg) {};
+    FileExcept(const std::string& err_msg) : std::runtime_error(err_msg) {}
 };
 
 
-inline string readFile(const string& file_name)
+inline std::string readFile(const std::string& file_name)
 {
-    ifstream ifs(file_name);
+    std::ifstream ifs(file_name);
     if (!ifs.is_open()) {
 #if CLS_HAS_EXCEPT
         throw FileExcept("Could not open file " + file_name);
@@ -64,49 +64,49 @@ inline string readFile(const string& file_name)
 #endif
     }
 
-    return string(ifsbuf_iter(ifs), ifsbuf_iter());
+    return std::string(ifsbuf_iter(ifs), ifsbuf_iter());
 }
 
-inline vector<char> readBinaryFile(const string& file_name)
+inline std::vector<char> readBinaryFile(const std::string& file_name)
 {
-    ifstream ifs(file_name, ios::binary);
+    std::ifstream ifs(file_name, std::ios::binary);
     if (!ifs) {
 #if CLS_HAS_EXCEPT
         throw FileExcept("Could not open file " + file_name);
 #else
-        cerr << "Fail to open the file" << endl;
-        return vector<char>();
+        std::cerr << "Fail to open the file" << std::endl;
+        return std::vector<char>();
 #endif
     }
 
-    return vector<char>(ifsbuf_iter(ifs), ifsbuf_iter());
+    return std::vector<char>(ifsbuf_iter(ifs), ifsbuf_iter());
 }
 
 
-inline ifstream& gotoLine(ifstream& file, int num)
+inline std::ifstream& gotoLine(std::ifstream& file, int num)
 {
-    file.seekg(ios::beg);
+    file.seekg(std::ios::beg);
     for (int i = 0; i < num-1; ++i) {
-        file.ignore(numeric_limits<streamsize>::max(), '\n');
+        file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     }
     return file;
 }
 
 
-inline string getLineStr(ifstream& ifs, int num)
+inline std::string getLineStr(std::ifstream& ifs, int num)
 {
     gotoLine(ifs, num);
 
-    string curr_line;
+    std::string curr_line;
     getline(ifs, curr_line);
 
     return curr_line;
 }
 
 
-inline string getLineStr(const string& file_name, int num)
+inline std::string getLineStr(const std::string& file_name, int num)
 {
-    ifstream ifs(file_name);
+    std::ifstream ifs(file_name);
     if (!ifs) {
 #if CLS_HAS_EXCEPT
         throw FileExcept("Could not open file " + file_name);
@@ -120,18 +120,18 @@ inline string getLineStr(const string& file_name, int num)
 }
 
 
-inline int countLine(const string& file_name)
+inline int countLine(const std::string& file_name)
 {
-    ifstream ifs (file_name);
+    std::ifstream ifs (file_name);
 
     int count = 0;
-    string tmp;
+    std::string tmp;
     while (getline(ifs, tmp)) {
         ++count;
     }
 
     return count;
 }
-_CLS_END
+CLS_END
 
 #endif // CLS_FILE_HANDLE_HPP

@@ -32,7 +32,7 @@
 #include <stdexcept>
 #include "byte_array.hpp"
 
-_CLS_BEGIN
+CLS_BEGIN
 class DynBitset {
 protected:
     static const size_t BYTESIZE = 8;
@@ -219,6 +219,6 @@ inline bool operator!=(const DynBitset& left, const DynBitset& right)
 {
     return !(left == right);
 }
-_CLS_END
+CLS_END
 
 #endif // CLS_DYN_BITSET_HPP

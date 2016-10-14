@@ -31,26 +31,26 @@
 
 using namespace cls;
 
-_CLS_BEGIN
+CLS_BEGIN
 struct Shape {
 public:
-    using Ptr = unique_ptr<Shape>;
+    using Ptr = std::unique_ptr<Shape>;
     virtual ~Shape() = default;
 
-    virtual void draw() { cout << "drawing a shape" << endl; }
+    virtual void draw() { std::cout << "drawing a shape" << std::endl; }
 };
 
 struct Rect : Shape {
     Rect(int width, int height)
-        : w(width), h(height) {};
+        : w(width), h(height) {}
     Rect(int width)
-        : w(width), h(width) {};
+        : w(width), h(width) {}
     ~Rect() {
-        cout << "Rect dctor called, width: " << w << " height: " << h << endl;
+        std::cout << "Rect dctor called, width: " << w << " height: " << h << std::endl;
     }
 
     void draw() override {
-        cout << "drawing a Rect, width: " << w << " height: " << h << endl;
+        std::cout << "drawing a Rect, width: " << w << " height: " << h << std::endl;
     }
 
     int w, h;
@@ -60,11 +60,11 @@ struct Square final : Rect {
     Square(int width)
         : Rect(width), w(width) {};
     ~Square() {
-        cout << "Square dctor called, width: " << w << endl;
+        std::cout << "Square dctor called, width: " << w << std::endl;
     }
 
     void draw() override {
-        cout << "drawing a square, width: " << w << endl;
+        std::cout << "drawing a square, width: " << w << std::endl;
     }
 
     int w;
@@ -72,20 +72,20 @@ struct Square final : Rect {
 
 struct Star final : Shape {
     ~Star() {
-        cout << "Star dctor called" << endl;
+        std::cout << "Star dctor called" << std::endl;
     }
 
     void draw() override {
-        cout << "drawing a star\n";
+        std::cout << "drawing a star\n";
     }
 };
 
 struct CmdArgs {
-    string name       = "";
-    string address    = "";
+    std::string name       = "";
+    std::string address    = "";
     int    post_code  = 0;
     bool   need_print = false;
-    string load_file  = "";
+    std::string load_file  = "";
 };
 
 namespace example {
@@ -106,7 +106,7 @@ void cmdLineParser()
         "cmake_install.cmake"
     };
 
-    vector<LongOption> long_options = {
+    std::vector<LongOption> long_options = {
         {"name"     , required_argument, 'n'},
         {"address"  , optional_argument, 'a'},
         {"post_code", required_argument, 'c'},
@@ -120,10 +120,10 @@ void cmdLineParser()
     while ((ch = cmd_parser.get()) != -1) {
         switch (ch) {
         case 'n':
-            cmd_args.name = cmd_parser.getArg<string>();
+            cmd_args.name = cmd_parser.getArg<std::string>();
             break;
         case 'a':
-            cmd_args.address = cmd_parser.getArg<string>();
+            cmd_args.address = cmd_parser.getArg<std::string>();
             break;
         case 'c':
             cmd_args.post_code = cmd_parser.getArg<int>();
@@ -132,32 +132,32 @@ void cmdLineParser()
             cmd_args.need_print = true;
             break;
         case 'f':
-            cmd_args.load_file = cmd_parser.getArg<string>();
+            cmd_args.load_file = cmd_parser.getArg<std::string>();
             break;
         case ':':
-            cerr << "ERROR: Invalid option, missing argument!" << endl;
-            exit(1);
+            std::cerr << "ERROR: Invalid option, missing argument!" << std::endl;
+            std::exit(1);
         case '?':
-            cerr << "ERROR: Unknown argument!" << endl;
-            exit(1);
+            std::cerr << "ERROR: Unknown argument!" << std::endl;
+            std::exit(1);
         default:
-            cerr << "ERROR: Parsing fail!" << endl;
-            exit(1);
+            std::cerr << "ERROR: Parsing fail!" << std::endl;
+            std::exit(1);
         }
     }
 
     if (cmd_args.need_print) {
-        cout.setf(ios::left);
-        cout << setw(9) << "name"      << ": " << cmd_args.name      << endl;
-        cout << setw(9) << "address"   << ": " << cmd_args.address   << endl;
-        cout << setw(9) << "post code" << ": " << cmd_args.post_code << endl;
+        std::cout.setf(std::ios::left);
+        std::cout << std::setw(9) << "name"      << ": " << cmd_args.name      << std::endl;
+        std::cout << std::setw(9) << "address"   << ": " << cmd_args.address   << std::endl;
+        std::cout << std::setw(9) << "post code" << ": " << cmd_args.post_code << std::endl;
     }
 
     // File operation
     if (!cmd_args.load_file.empty()) {
         TRACE("Loaded file name: %s", cmd_args.load_file.c_str());
 
-        auto text = readFile(cmd_args.load_file);       // Read text file, save to string
+        auto text = readFile(cmd_args.load_file);       // Read text file, save to std::string
         auto data = readBinaryFile(cmd_args.load_file); // Read binary file, save to ByteArray
 
         int line_num = countLine(cmd_args.load_file);
@@ -172,7 +172,7 @@ void factoryPattern()
     Shape::Ptr shape;
 
     using ShapeFactory = Factory<Shape>;
-//    using ShapeFactory = Factory<Shape, string, shared_ptr>;
+//    using ShapeFactory = Factory<Shape, std::string, shared_ptr>;
 
     ShapeFactory::addType<Rect, int>("Rect");
     ShapeFactory::addType<Rect, int, int>("Rect");
@@ -190,9 +190,9 @@ void factoryPattern()
 
     ShapeFactory::removeType("Rect");
     shape = ShapeFactory::create("Rect", 5);
-    if (!shape) cout << "could not find type Square" << endl;
+    if (!shape) std::cout << "could not find type Square" << std::endl;
     shape = ShapeFactory::create("Rect", 5, 10);
-    if (!shape) cout << "could not find type Square" << endl;
+    if (!shape) std::cout << "could not find type Square" << std::endl;
 }
 
 void iteratorTraits()
@@ -205,30 +205,30 @@ void iteratorTraits()
         "const int is not a const iterator");
     static_assert(is_const_iterator<const Shape*>::value,
         "const Shape* is a const iterator");
-    static_assert(!is_const_iterator<vector<int>::iterator>::value,
-        "vector<int>::iterator is not a const iterator");
-    static_assert(is_const_iterator<vector<int>::const_iterator>::value,
-        "vector<int>::const_iterator is a const iterator");
-    static_assert(is_input_iterator<vector<int>::iterator&>::value,
-        "vector<int>::iterator is an input iterator");
-    static_assert(!is_input_iterator<ostream_iterator<int>>::value,
+    static_assert(!is_const_iterator<std::vector<int>::iterator>::value,
+        "std::vector<int>::iterator is not a const iterator");
+    static_assert(is_const_iterator<std::vector<int>::const_iterator>::value,
+        "std::vector<int>::const_iterator is a const iterator");
+    static_assert(is_input_iterator<std::vector<int>::iterator&>::value,
+        "std::vector<int>::iterator is an input iterator");
+    static_assert(!is_input_iterator<std::ostream_iterator<int>>::value,
         "ostream_iterator<int> is not an input iterator");
-    static_assert(is_output_iterator<ostream_iterator<int>>::value,
+    static_assert(is_output_iterator<std::ostream_iterator<int>>::value,
         "ostream_iterator<int> is an output iterator");
-    static_assert(!is_output_iterator<istream_iterator<int>>::value,
+    static_assert(!is_output_iterator<std::istream_iterator<int>>::value,
         "istream_iterator<int> is not an output iterator");
-    static_assert(!is_output_iterator<vector<int>::const_iterator>::value,
-        "vector<int>::const_iterator is not an output iterator");
-    static_assert(is_forward_iterator<forward_list<int>::iterator>::value,
+    static_assert(!is_output_iterator<std::vector<int>::const_iterator>::value,
+        "std::vector<int>::const_iterator is not an output iterator");
+    static_assert(is_forward_iterator<std::forward_list<int>::iterator>::value,
         "forward_list<int>::iterator is an forward iterator");
-    static_assert(!is_bidirectional_iterator<forward_list<int>::iterator>::value,
+    static_assert(!is_bidirectional_iterator<std::forward_list<int>::iterator>::value,
         "forward_list<int>::iterator is not an bidirectional iterator");
-    static_assert(is_bidirectional_iterator<list<int>::iterator>::value,
+    static_assert(is_bidirectional_iterator<std::list<int>::iterator>::value,
         "list<int>::iterator is an bidirectional iterator");
-    static_assert(!is_random_access_iterator<forward_list<int>::iterator>::value,
+    static_assert(!is_random_access_iterator<std::forward_list<int>::iterator>::value,
         "forward_list<int>::iterator is not an random access iterator");
-    static_assert(is_random_access_iterator<vector<int>::const_iterator>::value,
-        "vector<int>::const_iterator is an random access iterator");
+    static_assert(is_random_access_iterator<std::vector<int>::const_iterator>::value,
+        "std::vector<int>::const_iterator is an random access iterator");
     static_assert(is_random_access_iterator<Shape*>::value,
         "Shape* is an random access iterator");
 }
@@ -237,16 +237,16 @@ void print()
 {
     using cls::print;
 
-    string s0 = "Hello C++14!\n";
-    string& s1 = s0;
-    print("%s", string("Hello C++11!\n"));
+    std::string s0 = "Hello C++14!\n";
+    std::string& s1 = s0;
+    print("%s", std::string("Hello C++11!\n"));
     print("s0: %s", s0);
     print("s1: %s", s1);
     print("%d %d\n");
     print(L"%s %s\n");
 }
 }
-_CLS_END
+CLS_END
 
 TEST_CASE("Examples", "[example]") {
     example::cmdLineParser();

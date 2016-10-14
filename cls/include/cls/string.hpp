@@ -32,7 +32,7 @@
 #include <locale>
 #include "cls_defs.h"
 
-_CLS_BEGIN
+CLS_BEGIN
 namespace detail {
 template <typename T>
 T argument(T value) noexcept
@@ -151,6 +151,6 @@ inline std::wstring to_utf16(const std::string& str)
   static std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
   return converter.from_bytes(str);
 }
-_CLS_END
+CLS_END
 
 #endif // CLS_STRING_HPP

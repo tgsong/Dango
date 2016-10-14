@@ -33,16 +33,16 @@
 #include "string.hpp"
 
 
-_CLS_BEGIN
+CLS_BEGIN
 namespace detail {
-using high_res_clock = chrono::high_resolution_clock;
+using high_res_clock = std::chrono::high_resolution_clock;
 
-const array<const char*, 4> suffixes = { "ns", "us", "ms", "s" };
+const std::array<const char*, 4> suffixes = { "ns", "us", "ms", "s" };
 const int clock_unit = 1000;
 
 inline void printDuration(const high_res_clock::duration& t, int precision = 0)
 {
-    auto count = chrono::duration_cast<chrono::nanoseconds>(t).count();
+    auto count = std::chrono::duration_cast<std::chrono::nanoseconds>(t).count();
     size_t exp = 0;
     if (count)
         exp = std::min(static_cast<size_t>(std::log(count) / std::log(clock_unit)), suffixes.size() - 1);
@@ -53,9 +53,9 @@ inline void printDuration(const high_res_clock::duration& t, int precision = 0)
     printf("%.*f%s", precision, count_num, count_unit);
 }
 
-inline std::string formatDuration(const chrono::milliseconds& t, int precision = 0)
+inline std::string formatDuration(const std::chrono::milliseconds& t, int precision = 0)
 {
-    auto count = chrono::duration_cast<chrono::nanoseconds>(t).count();
+    auto count = std::chrono::duration_cast<std::chrono::nanoseconds>(t).count();
     size_t exp = 0;
     if (count)
         exp = std::min(static_cast<size_t>(std::log(count) / std::log(clock_unit)), suffixes.size() - 1);
@@ -68,8 +68,8 @@ inline std::string formatDuration(const chrono::milliseconds& t, int precision =
 }
 
 class ScopeTimer {
-    using sys_clock = chrono::system_clock;
-    using seconds   = chrono::duration<double>;
+    using sys_clock = std::chrono::system_clock;
+    using seconds   = std::chrono::duration<double>;
 
 public:
     explicit ScopeTimer(int precision = 3)
@@ -87,8 +87,8 @@ private:
 };
 
 class CPUTimer {
-    using sys_clock = chrono::system_clock;
-    using seconds   = chrono::duration<double>;
+    using sys_clock = std::chrono::system_clock;
+    using seconds   = std::chrono::duration<double>;
 
 public:
     explicit CPUTimer(bool is_started = true)
@@ -98,7 +98,7 @@ public:
         if (is_started) start();
     }
 
-    double elapsed(const string& title = "Since begin", int precision = 3)
+    double elapsed(const std::string& title = "Since begin", int precision = 3)
     {
         if (is_stopped) {
             printf("Paused\n");
@@ -115,7 +115,7 @@ public:
         return since_begin.count();
     }
 
-    double delta(const string& title = "Since last check", int precision = 3)
+    double delta(const std::string& title = "Since last check", int precision = 3)
     {
         if (is_stopped) {
             printf("Paused\n");
@@ -169,6 +169,6 @@ private:
     bool    is_stopped;
     bool    need_print;
 };
-_CLS_END
+CLS_END
 
 #endif // CLS_TIMER_HPP

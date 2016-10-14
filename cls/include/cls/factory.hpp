@@ -32,21 +32,21 @@
 #include "algorithm.hpp"
 #include "cls_defs.h"
 
-_CLS_BEGIN
+CLS_BEGIN
 namespace detail {
-template<typename T, template<typename...> class Ptr = unique_ptr>
+template<typename T, template<typename...> class Ptr = std::unique_ptr>
 struct ObjCreator {
     template<typename... Args>
     Ptr<T> operator()(Args&&... args)
     {
-        return Ptr<T>(new T(forward<Args>(args)...));
-    };
+        return Ptr<T>(new T(std::forward<Args>(args)...));
+    }
 
     template<typename... Args>
     Ptr<T> create(Args&&... args)
     {
-        return (*this)(forward<Args>(args)...);
-    };
+        return (*this)(std::forward<Args>(args)...);
+    }
 };
 
 template<typename IDType>
@@ -59,7 +59,7 @@ template<typename BaseType, typename IDType, template<typename...> class Ptr, ty
 class ObjFactory : public ObjFactoryBase<IDType> {
 public:
     using BasePtr = Ptr<BaseType>;
-    using Creator = function<BasePtr(CtorArgs...)>;
+    using Creator = std::function<BasePtr(CtorArgs...)>;
 
     bool addType(const IDType& ID, const Creator& creator)
     {
@@ -91,7 +91,7 @@ public:
     {
         auto iter = creators_map.find(ID);
         if (iter != creators_map.end()) {
-            return (iter->second)(forward<CtorArgs>(args)...);
+            return (iter->second)(std::forward<CtorArgs>(args)...);
         }
 
         return nullptr;
@@ -106,12 +106,12 @@ public:
 private:
     ObjFactory() = default;
 
-    map<IDType, Creator> creators_map;
+    std::map<IDType, Creator> creators_map;
 };
 } // End namespace detail
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-template<typename Base, typename IDType = string, template<typename...> class Ptr = unique_ptr>
+template<typename Base, typename IDType = std::string, template<typename...> class Ptr = std::unique_ptr>
 class Factory {
     using ObjFactoryBasePtr = detail::ObjFactoryBase<IDType>*;
 
@@ -132,7 +132,7 @@ public:
         }
 
         return success;
-    };
+    }
 
     template<typename Derived, typename... CtorArgs>
     static bool addType(const IDType& id, const Creator<CtorArgs...>& creator)
@@ -144,13 +144,13 @@ public:
         }
 
         return success;
-    };
+    }
 
     template<typename... CtorArgs>
     static Ptr<Base> create(const IDType& id, CtorArgs&&... args)
     {
         auto& obj_factory = ObjFactory<CtorArgs...>::instance();
-        return obj_factory.create(id, forward<CtorArgs>(args)...);
+        return obj_factory.create(id, std::forward<CtorArgs>(args)...);
     }
 
     static bool removeType(const IDType& ID)
@@ -171,10 +171,10 @@ public:
     }
 
 private:
-    map<IDType, vector<ObjFactoryBasePtr>> obj_factory_vec;
+    std::map<IDType, std::vector<ObjFactoryBasePtr>> obj_factory_vec;
 };
 
-_CLS_END
+CLS_END
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Use these macros in *.cpp file

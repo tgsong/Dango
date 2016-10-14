@@ -29,50 +29,50 @@
 #include <type_traits>
 #include "cls_defs.h"
 
-_CLS_BEGIN
+CLS_BEGIN
 //////////////////////////////////////////////////////////////////////////////////////////
 // Common type traits
 template<bool B, class T = void>
-using enable_if_t = typename enable_if<B, T>::type;
+using enable_if_t = typename std::enable_if<B, T>::type;
 
 template<typename T, typename = void>
-struct is_const_ref : false_type
+struct is_const_ref : std::false_type
 {};
 
 template<typename T>
-struct is_const_ref<T, enable_if_t<is_reference<T>::value &&
-    is_const<typename remove_reference<T>::type>::value>> : true_type
+struct is_const_ref<T, std::enable_if_t<std::is_reference<T>::value &&
+    std::is_const<typename std::remove_reference<T>::type>::value>> : std::true_type
 {};
 
 template<typename T>
 struct remove_const_ref {
-    using type = typename remove_const<typename remove_reference<T>::type>::type;
+    using type = typename std::remove_const<typename std::remove_reference<T>::type>::type;
 };
 
 template <typename... Args>
 struct type_list
 {
   template <size_t N>
-  using type = typename tuple_element<N, tuple<Args...>>::type;
+  using type = typename std::tuple_element<N, std::tuple<Args...>>::type;
 };
 //////////////////////////////////////////////////////////////////////////////////////////
 // Container traits
 template<typename T, typename = void>
-struct is_container : false_type
+struct is_container : std::false_type
 {};
 
 template<typename T>
-struct is_container<T, enable_if_t<!is_same<
-    typename remove_reference<T>::type::iterator,
-    void>::value>> : true_type
+struct is_container<T, std::enable_if_t<!std::is_same<
+    typename std::remove_reference<T>::type::iterator,
+    void>::value>> : std::true_type
 {};
 
 template<typename T, size_t N>
-struct is_container<T(&)[N], void> : true_type
+struct is_container<T(&)[N], void> : std::true_type
 {};
 
 template<typename T, size_t N>
-struct is_container<T[N], void> : true_type
+struct is_container<T[N], void> : std::true_type
 {};
 
 template <typename Container, bool = is_container<Container>::value>
@@ -81,10 +81,10 @@ struct ContainerTraits
 
 template <typename Container>
 struct ContainerTraits<Container, true> {
-    using iterator   = typename remove_reference<Container>::type::iterator;
-    using value_type = typename iterator_traits<iterator>::value_type;
-    using reference  = typename iterator_traits<iterator>::reference;
-    using pointer    = typename iterator_traits<iterator>::pointer;
+    using iterator   = typename std::remove_reference<Container>::type::iterator;
+    using value_type = typename std::iterator_traits<iterator>::value_type;
+    using reference  = typename std::iterator_traits<iterator>::reference;
+    using pointer    = typename std::iterator_traits<iterator>::pointer;
 };
 
 template <typename T, size_t N>
@@ -117,17 +117,17 @@ using container_iterator_t  = typename ContainerTraits<Container>::pointer;
 //////////////////////////////////////////////////////////////////////////////////////////
 // Iterator traits
 template<typename T, typename = void>
-struct is_iterator : false_type
+struct is_iterator : std::false_type
 {};
 
 template<typename T>
-struct is_iterator<T, enable_if_t<!is_same<
-    typename remove_reference<T>::type::iterator_category,
-    void>::value>> : true_type
+struct is_iterator<T, std::enable_if_t<!std::is_same<
+    typename std::remove_reference<T>::type::iterator_category,
+    void>::value>> : std::true_type
 {};
 
 template<typename T>
-struct is_iterator<T*, void> : true_type
+struct is_iterator<T*, void> : std::true_type
 {};
 
 template <typename Iterator, bool = is_iterator<Iterator>::value>
@@ -137,7 +137,7 @@ struct IteratorTraits
 template <typename Iterator>
 struct IteratorTraits<Iterator, true> {
 private:
-    using traits = iterator_traits<typename remove_reference<Iterator>::type>;
+    using traits = std::iterator_traits<typename std::remove_reference<Iterator>::type>;
 
 public:
     using value_type        = typename traits::value_type;
@@ -163,66 +163,66 @@ template <typename Iterator>
 using iterator_category_t   = typename IteratorTraits<Iterator>::iterator_category;
 
 template<typename T, bool = is_iterator<T>::value>
-struct is_const_iterator : false_type
+struct is_const_iterator : std::false_type
 {};
 
 template<typename T>
 struct is_const_iterator<T, true>
-    : integral_constant<bool, is_const_ref<iterator_reference_t<T>>::value>
+    : std::integral_constant<bool, is_const_ref<iterator_reference_t<T>>::value>
 {};
 
 template<typename T, bool = is_iterator<T>::value>
-struct is_input_iterator : false_type
+struct is_input_iterator : std::false_type
 {};
 
 template<typename T>
 struct is_input_iterator<T, true>
-    : integral_constant<bool, is_base_of<input_iterator_tag,
+    : std::integral_constant<bool, std::is_base_of<std::input_iterator_tag,
       iterator_category_t<T>>::value>
 {};
 
 template<typename T, bool = is_iterator<T>::value && !is_const_iterator<T>::value>
-struct is_output_iterator : false_type
+struct is_output_iterator : std::false_type
 {};
 
 template<typename T>
 struct is_output_iterator<T, true>
-    : integral_constant<bool,
-      is_same<output_iterator_tag,        iterator_category_t<T>>::value ||
-      is_same<forward_iterator_tag,       iterator_category_t<T>>::value ||
-      is_same<bidirectional_iterator_tag, iterator_category_t<T>>::value ||
-      is_same<random_access_iterator_tag, iterator_category_t<T>>::value>
+    : std::integral_constant<bool,
+      std::is_same<std::output_iterator_tag,        iterator_category_t<T>>::value ||
+      std::is_same<std::forward_iterator_tag,       iterator_category_t<T>>::value ||
+      std::is_same<std::bidirectional_iterator_tag, iterator_category_t<T>>::value ||
+      std::is_same<std::random_access_iterator_tag, iterator_category_t<T>>::value>
 {};
 
 template<typename T, bool = is_iterator<T>::value>
-struct is_forward_iterator : false_type
+struct is_forward_iterator : std::false_type
 {};
 
 template<typename T>
 struct is_forward_iterator<T, true>
-    : integral_constant<bool, is_base_of<forward_iterator_tag,
+    : std::integral_constant<bool, std::is_base_of<std::forward_iterator_tag,
       iterator_category_t<T>>::value>
 {};
 
 template<typename T, bool = is_iterator<T>::value>
-struct is_bidirectional_iterator : false_type
+struct is_bidirectional_iterator : std::false_type
 {};
 
 template<typename T>
 struct is_bidirectional_iterator<T, true>
-    : integral_constant<bool, is_base_of<bidirectional_iterator_tag,
+    : std::integral_constant<bool, std::is_base_of<std::bidirectional_iterator_tag,
       iterator_category_t<T>>::value>
 {};
 
 template<typename T, bool = is_iterator<T>::value>
-struct is_random_access_iterator : false_type
+struct is_random_access_iterator : std::false_type
 {};
 
 template<typename T>
 struct is_random_access_iterator<T, true>
-    : integral_constant<bool, is_base_of<random_access_iterator_tag,
+    : std::integral_constant<bool, std::is_base_of<std::random_access_iterator_tag,
       iterator_category_t<T>>::value>
 {};
-_CLS_END
+CLS_END
 
 #endif // CLS_TRAITS_HPP

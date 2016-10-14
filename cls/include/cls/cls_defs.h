@@ -28,8 +28,8 @@
 // Guideline Support Library
 #include <gsl/gsl>
 
-#define _CLS_BEGIN      namespace cls {
-#define _CLS_END        }
+#define CLS_BEGIN      namespace cls {
+#define CLS_END        }
 
 #if defined CLSAPI_EXPORTS
 #  define CLS_EXPORTS __declspec(dllexport)
@@ -62,20 +62,20 @@
 #  define DBGMSG(os, msg) \
      (os) << "Debug: " << __FILE__ << "(" << __LINE__ << "): " \
           << msg << std::endl
-#  define _TRACE(format, ...) \
+#  define CLS_TRACE(format, ...) \
      char buffer[256]; \
-     sprintf(buffer, (format), ##__VA_ARGS__); \
-     stringstream ss; \
-     ss << "Debug: " << __FILE__ << "(" << __LINE__ << "): " << buffer << endl
+     std::sprintf(buffer, (format), ##__VA_ARGS__); \
+     std::stringstream ss; \
+     ss << "Debug: " << __FILE__ << "(" << __LINE__ << "): " << buffer << std::endl
 #  ifdef _MSC_VER
 #    define TRACE(format, ...) { \
-       _TRACE((format), ##__VA_ARGS__); \
+       CLS_TRACE((format), ##__VA_ARGS__); \
        OutputDebugString(ss.str().c_str()); \
      }
 #  else
 #    define TRACE(format, ...) { \
-       _TRACE((format), ##__VA_ARGS__); \
-       cout << ss.str(); \
+       CLS_TRACE((format), ##__VA_ARGS__); \
+       std::cout << ss.str(); \
      }
 #  endif
 #else
@@ -121,6 +121,15 @@ using ulong  = unsigned long;
 using ullong = unsigned long long;
 using llong  = long long;
 
+// Size and alignment
+CLS_BEGIN
+using size_type = std::ptrdiff_t;
+template<typename T>
+constexpr size_type size_of = static_cast<size_type>(sizeof(T));
+template <typename T>
+constexpr size_type align_of = static_cast<size_type>(alignof(T));
+CLS_END
+
 // Detect GCC and Clang Version
 #define GCC_VERSION   (__GNUC__ * 100 +\
                        __GNUC_MINOR__)
@@ -128,9 +137,5 @@ using llong  = long long;
                        __clang_minor__)
 #define CPP11_SUPPORT (GCC_VERSION >= 408 || CLANG_VERSION >= 303 || _MSC_VER >= 1900)
 #define CPP14_SUPPORT (GCC_VERSION >= 500 || CLANG_VERSION >= 304 || _MSC_VER >= 1900)
-
-_CLS_BEGIN
-using namespace std;
-_CLS_END
 
 #endif // CLS_DEFS_H

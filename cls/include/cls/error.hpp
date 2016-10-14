@@ -45,11 +45,11 @@
 #  define CLS_AssertD(expr)
 #endif
 
-_CLS_BEGIN
+CLS_BEGIN
 struct Exception : public std::exception
 {
   Exception() = default;
-  Exception(const string& i_err, const string& i_func, const string& i_file, int i_line)
+  Exception(const std::string& i_err, const std::string& i_func, const std::string& i_file, int i_line)
     : err(i_err), func(i_func), file(i_file), line(i_line)
   {
     if (func.size() > 0)
@@ -64,25 +64,25 @@ struct Exception : public std::exception
   }
 
 private:
-  string msg = "";
+  std::string msg = "";
 
-  string err  = "";
-  string func = "";
-  string file = "";
+  std::string err  = "";
+  std::string func = "";
+  std::string file = "";
   int line    = 0;
 };
 
 inline void error(const Exception& exc)
 {
-  cerr << exc.what() << endl;
+  std::cerr << exc.what() << std::endl;
 
   throw exc;
 }
 
-inline void error(const string& err, const string& func, const string& file, int line)
+inline void error(const std::string& err, const std::string& func, const std::string& file, int line)
 {
   error(cls::Exception(err, func, file, line));
 }
-_CLS_END
+CLS_END
 
 #endif // CLS_ERROR_HPP
