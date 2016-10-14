@@ -24,64 +24,29 @@
 
 #pragma once
 
+#include <memory>
 #include <thread>
+#include <mutex>
+#include <iostream>
 #include <boost/align/aligned_alloc.hpp>
 #include <cls/cls_defs.h>
 
-_CLS_BEGIN
-constexpr size_t MIN_ALIGNMENT = 16;
-constexpr size_t PLAT_PTR_SIZE = sizeof(void*);
+CLS_BEGIN
+constexpr size_type MIN_ALIGNMENT = 16;
+constexpr size_type PLAT_PTR_SIZE = sizeof(void*);
 
 #ifndef NDEBUG
-// Track memory allocation, detect leak
-static thread_local size_t g_allocate_size = 0;
+// Track memory allocation, detecting leak
+static thread_local size_type g_allocate_size = 0;
 #endif
 
 template <typename T>
 struct has_trivial_relocate : std::integral_constant<bool, std::is_pod<T>::value && !std::is_volatile<T>::value> {};
 
-class Allocator
-{
-public:
-    virtual void* allocate(size_t n) = 0;
-    virtual void* allocate(size_t n, size_t alignment) = 0;
-    virtual void  deallocate(void* p, size_t n) = 0;
-};
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// DefaultAllocator
-class DefaultAllocator : public Allocator
-{
-public:
-    void* allocate(size_t n) override
-    {
-        return boost::alignment::aligned_alloc(MIN_ALIGNMENT, n);
-    }
-
-    void* allocate(size_t n, size_t alignment) override
-    {
-        return boost::alignment::aligned_alloc(std::max(MIN_ALIGNMENT, alignment), n);
-    }
-
-    void  deallocate(void* p, size_t n) override
-    {
-        boost::alignment::aligned_free(p);
-    }
-};
-
-inline bool operator==(const DefaultAllocator& a, const DefaultAllocator& b)
-{
-    return true;
-}
-
-inline bool operator!=(const DefaultAllocator& a, const DefaultAllocator& b)
-{
-    return false;
-}
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+// Allocation helpers
 template <typename Alloc>
-void* alloc_memory(Alloc* alloc, size_t n, size_t alignment)
+void* alloc_memory(Alloc* alloc, size_type n, size_type alignment)
 {
 #ifndef NDEBUG
     g_allocate_size += n;
@@ -96,30 +61,32 @@ void* alloc_memory(Alloc* alloc, size_t n, size_t alignment)
 }
 
 template <typename Alloc>
-void* alloc_memory(Alloc& alloc, size_t n, size_t alignment)
+void* alloc_memory(Alloc& alloc, size_type n, size_type alignment)
 {
     return alloc_memory(&alloc, n, alignment);
 }
 
 template <typename T, typename Alloc>
-T* alloc_array(Alloc* alloc, size_t array_size)
+T* alloc_array(Alloc* alloc, size_type array_size)
 {
-    return static_cast<T*>(alloc_memory(alloc, array_size * sizeof(T), alignof(T)));
-};
+    return static_cast<T*>(alloc_memory(alloc, array_size * size_of<T>, align_of<T>));
+}
 
 template <typename T, typename Alloc>
-T* alloc_array(Alloc& alloc, size_t array_size)
+T* alloc_array(Alloc& alloc, size_type array_size)
 {
     return alloc_array<T>(&alloc, array_size);
-};
+}
 
 template <typename Alloc>
-void dealloc_memory(Alloc* alloc, void* p, size_t n)
+void dealloc_memory(Alloc* alloc, void* p, size_type n)
 {
 #ifndef NDEBUG
     g_allocate_size -= n;
     if (g_allocate_size == 0) {
-        std::printf("Thread %d, No leak occurred.\n", std::this_thread::get_id());
+        static std::mutex mtx;
+        std::unique_lock<std::mutex> display_lock(mtx);
+        std::cout << "Thread id = " << std::this_thread::get_id() << ", No leak occurred.\n";
     }
 #endif
 
@@ -127,7 +94,7 @@ void dealloc_memory(Alloc* alloc, void* p, size_t n)
 }
 
 template <typename Alloc>
-void dealloc_memory(Alloc& alloc, void* p, size_t n)
+void dealloc_memory(Alloc& alloc, void* p, size_type n)
 {
     dealloc_memory(&alloc, p, n);
 }
@@ -135,22 +102,76 @@ void dealloc_memory(Alloc& alloc, void* p, size_t n)
 template <typename T, typename Alloc>
 void dealloc_array(Alloc* alloc, gsl::span<T> array)
 {
-    dealloc_memory(alloc, array.data(), array.size() * sizeof(T));
-};
+    dealloc_memory(alloc, array.data(), array.size() * size_of<T>);
+}
 
 template <typename T, typename Alloc>
 void dealloc_array(Alloc& alloc, gsl::span<T> array)
 {
     dealloc_array<T>(&alloc, array);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Allocator interface
+class Allocator {
+public:
+    Allocator() = default;
+    Allocator(const Allocator&) = default;
+    Allocator(Allocator&&) = default;
+    Allocator& operator=(Allocator&&) = default;
+    Allocator& operator=(const Allocator&) = default;
+    virtual ~Allocator();
+
+    virtual void* allocate(size_type n) = 0;
+    virtual void* allocate(size_type n, size_type alignment) = 0;
+    virtual void  deallocate(void* p, size_type n) = 0;
 };
 
-Allocator* get_allocator();
-void set_allocator(Allocator*);
-void set_allocator(std::unique_ptr<Allocator>&&);
+// The global allocator used in system
+class ActiveAllocator {
+    static std::unique_ptr<Allocator> m_allocator;
 
-inline Allocator* get_default_allocator()
+public:
+    static Allocator* get() { return m_allocator.get(); }
+    static void reset(Allocator* alloc) { m_allocator.reset(alloc); }
+    static void reset(std::unique_ptr<Allocator>&& alloc) { m_allocator = std::move(alloc); }
+};
+
+// Used in STL types which require an allocator
+template <typename T>
+class STLAllocator {
+public:
+    using value_type = T;
+    using size_type = cls::size_type;
+
+    T* allocate(size_type n)
+    {
+        return static_cast<T*>(alloc_memory(ActiveAllocator::get(), size_of<T> * n, align_of<T>));
+    }
+
+    void deallocate(T* p, size_type n)
+    {
+        dealloc_memory(ActiveAllocator::get(), p, size_of<T> * n);
+    }
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// DefaultAllocator
+class DefaultAllocator : public Allocator {
+public:
+    void* allocate(size_type n) override;
+    void* allocate(size_type n, size_type alignment) override;
+    void  deallocate(void* p, size_type) override;
+};
+
+inline bool operator==(const DefaultAllocator&, const DefaultAllocator&)
 {
-    static DefaultAllocator alloc;
-    return &alloc;
+    return true;
 }
-_CLS_END
+
+inline bool operator!=(const DefaultAllocator&, const DefaultAllocator&)
+{
+    return false;
+}
+
+CLS_END

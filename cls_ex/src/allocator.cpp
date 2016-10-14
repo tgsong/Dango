@@ -24,23 +24,27 @@
 
 #include <cls_ex/allocator.h>
 
-_CLS_BEGIN
-namespace detail {
-static std::unique_ptr<Allocator> active_allocator = std::make_unique<DefaultAllocator>();
+CLS_BEGIN
+// Default active allocator
+std::unique_ptr<Allocator> ActiveAllocator::m_allocator = std::make_unique<DefaultAllocator>();
+
+Allocator::~Allocator() = default;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// DefaultAllocator
+void* DefaultAllocator::allocate(size_type n)
+{
+    return boost::alignment::aligned_alloc(static_cast<size_t>(MIN_ALIGNMENT), static_cast<size_t>(n));
 }
 
-Allocator* get_allocator()
+void* DefaultAllocator::allocate(size_type n, size_type alignment)
 {
-    return detail::active_allocator.get();
+    return boost::alignment::aligned_alloc(
+        static_cast<size_t>(std::max(MIN_ALIGNMENT, alignment)), static_cast<size_t>(n));
 }
 
-void set_allocator(Allocator* alloc)
+void DefaultAllocator::deallocate(void* p, size_type)
 {
-    detail::active_allocator.reset(alloc);
+    boost::alignment::aligned_free(p);
 }
-
-void set_allocator(std::unique_ptr<Allocator>&& alloc)
-{
-    detail::active_allocator = std::move(alloc);
-}
-_CLS_END
+CLS_END

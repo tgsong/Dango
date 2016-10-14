@@ -34,7 +34,6 @@ export(TARGETS libcls_ex FILE CLSexConfig.cmake)
 #---------------------------------------------------------------------------------------------------
 add_executable(test_cls_ex
   include/cls_ex/allocator.h
-  include/cls_ex/deque.h
   include/cls_ex/deque_x.h
   src/allocator.cpp
   test/main.cpp

@@ -24,24 +24,36 @@
 
 #include <iostream>
 #include <future>
+#include <deque>
 #include <boost/container/small_vector.hpp>
 #include <cls_ex/deque_x.h>
-#include <cls_ex/deque.h>
 
 struct Foo {
     int b = 4;
 };
 
-using Subarray = cls::detail::SubarrayT<Foo, 4, cls::Allocator>;
+using Subarray = cls::detail::SubarrayT<Foo, 4>;
 
-int main(int argc, char* argv[])
+int main(/*int argc, char* argv[]*/)
 {
-//    cls::Deque<int> d;
-//    std::cout << d.size() << std::endl;
-//
+    auto init = {1, 2, 3, 4, 5};
+    cls::Deque<int> d1 {init.begin(), init.end()};
+    cls::Deque<int> d2 {1, 2};
+    cls::Deque<int> d3 {d2};
+    d3 = std::move(d2);
+    d3.assign(10, 1);
+
+    std::cout << d3.size() << std::endl;
+    d3.clear();
+
 //    for (auto i = 0; i < 1e5; ++i) {
-//        d.emplace_back(i);
+//        d3.emplace_back(i);
 //    }
+    {
+        std::vector<Foo, cls::STLAllocator<Foo>> vec(1);
+        vec.resize(4);
+        vec.resize(8);
+    }
 
     boost::container::small_vector<std::future<void>, 8> tasks;
     for (int i = 0; i < 1; ++i) {
