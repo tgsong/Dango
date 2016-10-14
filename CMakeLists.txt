@@ -9,6 +9,17 @@ list(APPEND CMAKE_MODULE_PATH
   $ENV{DEV_LIBS}/cls/cmake
 )
 
+function(enable_all_warnings TARGET)
+  if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    target_compile_options(${TARGET} INTERFACE -Weverything
+      -Wno-c++98-compat -Wno-c++98-compat-pedantic -Wno-global-constructors -Wno-exit-time-destructors)
+  elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    target_compile_options(${TARGET} INTERFACE -Wall -Wextra -pedantic)
+  elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_options(${TARGET} INTERFACE /W4)
+  endif()
+endfunction()
+
 #---------------------------------------------------------------------------------------------------
 # Include necessary libraries as imported targets
 #---------------------------------------------------------------------------------------------------

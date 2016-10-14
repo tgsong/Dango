@@ -1,6 +1,7 @@
 project(cls VERSION 0.1 LANGUAGES CXX)
 
 add_library(libcls INTERFACE)
+enable_all_warnings(libcls)
 
 #---------------------------------------------------------------------------------------------------
 # Define headers for this library
@@ -43,6 +44,7 @@ export(TARGETS libcls FILE CLSConfig.cmake)
 # Unit tests
 #---------------------------------------------------------------------------------------------------
 add_executable(test_cls
+  include/cls
   test/main.cpp
   test/test.cpp
   test/example.cpp
