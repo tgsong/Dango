@@ -46,6 +46,8 @@ int main(/*int argc, char* argv[]*/)
     std::cout << d3.size() << std::endl;
     d3.clear();
 
+    d1.begin().copy(d2.begin(), d2.end());
+
 //    for (auto i = 0; i < 1e5; ++i) {
 //        d3.emplace_back(i);
 //    }

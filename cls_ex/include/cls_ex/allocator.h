@@ -40,9 +40,6 @@ constexpr size_type PLAT_PTR_SIZE = sizeof(void*);
 static thread_local size_type g_allocate_size = 0;
 #endif
 
-template <typename T>
-struct has_trivial_relocate : std::integral_constant<bool, std::is_pod<T>::value && !std::is_volatile<T>::value> {};
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Allocation helpers
 template <typename Alloc>

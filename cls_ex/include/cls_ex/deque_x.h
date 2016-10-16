@@ -37,19 +37,19 @@ constexpr size_type DEFAULT_SUBARRAY_SIZE =
 constexpr size_type MIN_PTR_ARRAY_SIZE = 8;
 
 template <typename ContainerT>
-inline auto makeView(ContainerT& container)
+inline auto make_view(ContainerT& container)
 {
     return gsl::span<typename ContainerT::value_type> {container};
 }
 
 template <typename ContainerT>
-inline auto makeView(ContainerT& container, size_type offset, size_type count)
+inline auto make_view(ContainerT& container, size_type offset, size_type count)
 {
-    return makeView(container).subspan(offset, count);
+    return make_view(container).subspan(offset, count);
 }
 
 template <typename Iterator>
-inline auto makeView(Iterator first, Iterator last)
+inline auto make_view(Iterator first, Iterator last)
 {
     return gsl::span<typename std::iterator_traits<Iterator>::value_type> {first, last};
 }
@@ -151,15 +151,13 @@ struct DequeIterator {
 
     DequeIterator() = default;
 
-    // Some template trick to support construct/assign const_iterator from iterator
-    template <typename Iterator = iterator,
-        typename = std::enable_if_t<
+    // Template trick to support construct/assign const_iterator from iterator
+    template <typename Iterator = iterator, typename = std::enable_if_t<
             std::is_same<Iterator, iterator>::value &&
             std::is_same<this_type, const_iterator>::value>>
     DequeIterator(const iterator& rhs) : m_current {rhs.m_current}, m_subarray {rhs.m_subarray} {}
 
-    template <typename Iterator = iterator,
-        typename = std::enable_if_t<
+    template <typename Iterator = iterator, typename = std::enable_if_t<
             std::is_same<Iterator, iterator>::value &&
             std::is_same<this_type, const_iterator>::value>>
     DequeIterator& operator=(const iterator& rhs)
@@ -174,9 +172,9 @@ struct DequeIterator {
 
     this_type& operator++()
     {
-        if (++m_current == subEnd()) {
+        if (++m_current == sub_end()) {
             ++m_subarray;
-            m_current = subBegin();
+            m_current = sub_begin();
         }
 
         return *this;
@@ -192,9 +190,9 @@ struct DequeIterator {
 
     this_type& operator--()
     {
-        if (m_current == subBegin()) {
+        if (m_current == sub_begin()) {
             --m_subarray;
-            m_current = subEnd();
+            m_current = sub_end();
         }
         --m_current;
 
@@ -211,7 +209,7 @@ struct DequeIterator {
 
     this_type& operator+=(difference_type n)
     {
-        const auto new_pos = std::distance(subBegin(), m_current) + n;
+        const auto new_pos = std::distance(sub_begin(), m_current) + n;
         if (0 <= new_pos && new_pos < SUBARRAY_SIZE) {
             std::advance(m_current, n);
         } else {
@@ -222,8 +220,8 @@ struct DequeIterator {
             static constexpr difference_type offset = 1 << 24;
             const auto subarray_idx = (offset + new_pos) / SUBARRAY_SIZE - offset / SUBARRAY_SIZE;
 
-            setSubarray(std::next(m_subarray, subarray_idx));
-            m_current = std::next(subBegin(), new_pos - subarray_idx * SUBARRAY_SIZE);
+            set_subarray(std::next(m_subarray, subarray_idx));
+            m_current = std::next(sub_begin(), new_pos - subarray_idx * SUBARRAY_SIZE);
         }
 
         return *this;
@@ -255,7 +253,7 @@ struct DequeIterator {
     difference_type operator-(const DequeIterator<U, PointerU, ReferenceU, SUBARRAY_SIZE>& x) const
     {
         return SUBARRAY_SIZE * (m_subarray - x.m_subarray - 1) +
-            (m_current - x.subBegin()) + (x.subEnd() - x.m_current);
+            (m_current - x.sub_begin()) + (x.sub_end() - x.m_current);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -296,26 +294,26 @@ struct DequeIterator {
         return *this == rhs || *this > rhs;
     }
 
-protected:
+public:
     DequeIterator(T* current, SubarrayPtr* subarray) : m_current {current}, m_subarray {subarray} {}
 
-    iterator fromConst() const
+    iterator from_const() const
     {
         return iterator {m_current, m_subarray};
     }
 
     // Usually you also want to set m_current after this operation
-    void setSubarray(SubarrayPtr* subarray)
+    void set_subarray(SubarrayPtr* subarray)
     {
         m_subarray = subarray;
     }
 
-    T* subBegin() const
+    T* sub_begin() const
     {
         return m_subarray->get()->begin();
     }
 
-    T* subEnd() const
+    T* sub_end() const
     {
         return m_subarray->get()->end();
     }
@@ -324,6 +322,51 @@ protected:
     {
         return m_subarray->get();
     }
+
+    this_type copy(const iterator& first, const iterator& last)
+    {
+        return copy_impl(first, last, std::is_trivially_copyable<value_type> {});
+    }
+
+    // Optimize for trivially copyable type
+    this_type copy_impl(const iterator& first, const iterator& last, std::true_type)
+    {
+        // We are copying within the same subarray
+        if (first.sub_begin() == last.sub_begin() && first.sub_begin() == sub_begin()) {
+            std::copy(first.m_current, last.m_current, m_current);
+            return *this + (last.m_current - first.m_current);
+        }
+
+        return std::copy(first, last, *this);
+    }
+
+    this_type copy_impl(const iterator& first, const iterator& last, std::false_type)
+    {
+        return std::copy(first, last, *this);
+    }
+
+    iterator copy_backward(const iterator& first, const iterator& last)
+    {
+        return copy_backward_impl(first, last, std::is_trivially_copyable<value_type> {});
+    }
+
+    // Optimize for trivially copyable type
+    iterator copy_backward_impl(const iterator& first, const iterator& last, std::true_type)
+    {
+        // We are copying within the same subarray
+        if (first.sub_begin() == last.sub_begin() && first.sub_begin() == sub_begin()) {
+            std::copy_backward(first.m_current, last.m_current, m_current);
+            return *this + (last.m_current - first.m_current);
+        }
+
+        return std::copy_backward(first, last, *this);
+    }
+
+    iterator copy_backward_impl(const iterator& first, const iterator& last, std::false_type)
+    {
+        return std::copy_backward(first, last, *this);
+    }
+
 
 protected:
     T* m_current = nullptr;
@@ -355,7 +398,7 @@ public:
     using difference_type = std::ptrdiff_t;
     using iterator        = DequeIterator<T, T*, T&, SUBARRAY_SIZE>;
     using const_iterator  = DequeIterator<T, const T*, const T&, SUBARRAY_SIZE>;
-    using reverse_iterator =       std::reverse_iterator<iterator>;
+    using reverse_iterator       = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
     enum class Side {FRONT, BACK};
@@ -471,7 +514,7 @@ public:
     void clear()
     {
         destruct(m_begin, m_end);
-        for (auto& subarray : makeView(m_begin.m_subarray + 1, m_end.m_subarray)) {
+        for (auto& subarray : make_view(m_begin.m_subarray + 1, m_end.m_subarray)) {
             subarray.reset();
         }
         m_end = m_begin;
@@ -491,12 +534,12 @@ public:
     {
         if (pos.m_current == m_begin.m_current) {
             // Insert at beginning
-            const auto new_begin = reallocSubarray(n, Side::FRONT);
+            const auto new_begin = realloc_subarray(n, Side::FRONT);
             std::uninitialized_fill(new_begin, m_begin, v);
             m_begin = new_begin;
         } else if (pos.m_current == m_end.m_current) {
             // Insert at end
-            const auto new_end = reallocSubarray(n, Side::BACK);
+            const auto new_end = realloc_subarray(n, Side::BACK);
             std::uninitialized_fill(m_end, new_end, v);
             m_end = new_end;
         } else {
@@ -504,7 +547,7 @@ public:
             throw std::runtime_error {"Insert values in the middle is not implemented yet."};
         }
 
-        return pos.fromConst();
+        return pos.from_const();
     }
 
     template <typename ForwardIter, typename = std::enable_if_t<is_forward_iterator<ForwardIter>::value>>
@@ -514,12 +557,12 @@ public:
 
         if (pos.m_current == m_begin.m_current) {
             // Insert at beginning
-            const auto new_begin = reallocSubarray(n, Side::FRONT);
+            const auto new_begin = realloc_subarray(n, Side::FRONT);
             std::uninitialized_copy(first, last, new_begin);
             m_begin = new_begin;
         } else if (pos.m_current == m_end.m_current) {
             // Insert at end
-            const auto new_end = reallocSubarray(n, Side::BACK);
+            const auto new_end = realloc_subarray(n, Side::BACK);
             std::uninitialized_copy(first, last, m_end);
             m_end = new_end;
         } else {
@@ -527,7 +570,7 @@ public:
             throw std::runtime_error {"Insert values in the middle is not implemented yet."};
         }
 
-        return pos.fromConst();
+        return pos.from_const();
     }
 
     iterator insert(const_iterator pos, std::initializer_list<value_type> values)
@@ -577,7 +620,7 @@ public:
     template <typename... Args>
     void emplace_back(Args&&... args)
     {
-        if (std::next(m_end.m_current) != m_end.subEnd()) {
+        if (std::next(m_end.m_current) != m_end.sub_end()) {
             // If we have room in the last subarray
             m_end.subarray()->construct(m_end.m_current++, std::forward<Args>(args)...);
         } else {
@@ -586,25 +629,25 @@ public:
             value_type tmp {std::forward<Args>(args)...};
 
             // If we are in the last subarray, then we are going to need more
-            if (m_end.m_subarray - m_ptr_array.data() + 1 >= ptrArraySize()) {
-                reallocPtrArray(1, Side::BACK);
+            if (m_end.m_subarray - m_ptr_array.data() + 1 >= ptr_array_size()) {
+                realloc_ptr_array(1, Side::BACK);
             }
 
-            *std::next(m_end.m_subarray) = makeSubarray();
+            *std::next(m_end.m_subarray) = make_subarray();
 
             m_end.subarray()->construct(m_end.m_current, std::move(tmp));
-            m_end.setSubarray(std::next(m_end.m_subarray));
-            m_end.m_current = m_end.subBegin();
+            m_end.set_subarray(std::next(m_end.m_subarray));
+            m_end.m_current = m_end.sub_begin();
         }
     }
 
     void pop_back()
     {
-        if (m_end.m_current != m_end.subBegin()) {
+        if (m_end.m_current != m_end.sub_begin()) {
             (--m_end.m_current)->~value_type();
         } else {
             (m_end.m_subarray--)->reset();
-            m_end.m_current = std::prev(m_end.subEnd());
+            m_end.m_current = std::prev(m_end.sub_end());
             m_end.m_current->~value_type();
         }
     }
@@ -622,7 +665,7 @@ public:
     template <typename... Args>
     void emplace_front(Args&&... args)
     {
-        if (m_begin.m_current != m_begin.subBegin()) {
+        if (m_begin.m_current != m_begin.sub_begin()) {
             // If we have room in the last subarray
             m_begin.subarray()->construct(--m_begin.m_current, std::forward<Args>(args)...);
         } else {
@@ -632,25 +675,25 @@ public:
 
             // If we are in the first subarray, then we are going to need more
             if (m_begin.m_subarray == m_ptr_array.data()) {
-                reallocPtrArray(1, Side::FRONT);
+                realloc_ptr_array(1, Side::FRONT);
             }
 
-            *std::prev(m_begin.m_subarray) = makeSubarray();
+            *std::prev(m_begin.m_subarray) = make_subarray();
 
-            m_begin.setSubarray(std::prev(m_begin.m_subarray));
-            m_begin.m_current = std::prev(m_begin.subEnd());
+            m_begin.set_subarray(std::prev(m_begin.m_subarray));
+            m_begin.m_current = std::prev(m_begin.sub_end());
             m_begin.subarray()->construct(m_begin.m_current, std::move(tmp));
         }
     }
 
     void pop_front()
     {
-        if (std::next(m_begin.m_current) != m_begin.subEnd()) {
+        if (std::next(m_begin.m_current) != m_begin.sub_end()) {
             (m_begin.m_current++)->~value_type();
         } else {
             m_begin.m_current->~value_type();
             (m_begin.m_subarray++)->reset();
-            m_begin.m_current = m_begin.subBegin();
+            m_begin.m_current = m_begin.sub_begin();
         }
     }
 
@@ -677,22 +720,22 @@ public:
     }
 
 protected:
-    SubarrayPtr makeSubarray()
+    SubarrayPtr make_subarray()
     {
         return std::make_unique<Subarray>();
     }
 
-    void resizePtrArray(size_type n)
+    void resize_ptr_array(size_type n)
     {
         m_ptr_array.resize(n);
         m_ptr_array.shrink_to_fit();
     }
 
-    void reallocPtrArray(size_type ptr_count, Side side)
+    void realloc_ptr_array(size_type ptr_count, Side side)
     {
         const auto num_unused_ptr_front  = std::distance(m_ptr_array.data(), m_begin.m_subarray);
         const auto num_used_ptr          = std::distance(m_begin.m_subarray, m_end.m_subarray + 1);
-        const auto num_unused_ptr_back   = (ptrArraySize() - num_unused_ptr_front) - num_used_ptr;
+        const auto num_unused_ptr_back   = (ptr_array_size() - num_unused_ptr_front) - num_used_ptr;
         SubarrayPtr* new_ptr_array_begin = nullptr;
 
         // If we have enough unused pointers, we could just move them around (Use memmove to take care of overlap)
@@ -712,9 +755,9 @@ protected:
             std::move_backward(m_begin.m_subarray, m_end.m_subarray + 1, std::next(new_ptr_array_begin, num_used_ptr));
         } else {
             // If we really need more subarrays, double the ptr_array capacity or allocate more if needed
-            const auto old_ptr_array_size = ptrArraySize();
+            const auto old_ptr_array_size = ptr_array_size();
             const auto new_ptr_array_size = old_ptr_array_size + std::max(old_ptr_array_size, ptr_count);
-            resizePtrArray(new_ptr_array_size);
+            resize_ptr_array(new_ptr_array_size);
 
             new_ptr_array_begin = std::next(m_ptr_array.data(), num_unused_ptr_front +
                 (side == Side::FRONT ? ptr_count : 0));
@@ -722,42 +765,42 @@ protected:
         }
 
         // Reset the begin and end iterators
-        m_begin.setSubarray(new_ptr_array_begin);
-        m_end.setSubarray(std::next(new_ptr_array_begin, num_used_ptr - 1));
+        m_begin.set_subarray(new_ptr_array_begin);
+        m_end.set_subarray(std::next(new_ptr_array_begin, num_used_ptr - 1));
     }
 
-    iterator reallocSubarray(size_type capacity, Side side)
+    iterator realloc_subarray(size_type capacity, Side side)
     {
         if (side == Side::FRONT) {
-            const auto front_capacity = std::distance(m_begin.subBegin(), m_begin.m_current);
+            const auto front_capacity = std::distance(m_begin.sub_begin(), m_begin.m_current);
             if (front_capacity < capacity) {
                 const auto num_subarray_needed = ((capacity - front_capacity) + SUBARRAY_SIZE - 1) / SUBARRAY_SIZE;
 
                 // If there are not enough subarray before
                 const auto num_subarray_avail = std::distance(m_ptr_array.data(), m_begin.m_subarray);
                 if(num_subarray_needed > num_subarray_avail) {
-                    reallocPtrArray(num_subarray_needed - num_subarray_avail, Side::FRONT);
+                    realloc_ptr_array(num_subarray_needed - num_subarray_avail, Side::FRONT);
                 }
 
                 for(size_type i = 1; i <= num_subarray_needed; ++i) {
-                    m_begin.m_subarray[-i] = makeSubarray();
+                    m_begin.m_subarray[-i] = make_subarray();
                 }
             }
 
             return m_begin - capacity;
         } else {
-            const auto back_capacity = std::distance(m_end.m_current, std::prev(m_end.subEnd()));
+            const auto back_capacity = std::distance(m_end.m_current, std::prev(m_end.sub_end()));
             if (back_capacity < capacity) {
                 const auto num_subarray_needed = ((capacity - back_capacity) + SUBARRAY_SIZE - 1) / SUBARRAY_SIZE;
 
                 // If there are not enough pointers at back
-                const auto num_ptrs_avail = ((m_ptr_array.data() + ptrArraySize()) - m_end.m_subarray) - 1;
+                const auto num_ptrs_avail = ((m_ptr_array.data() + ptr_array_size()) - m_end.m_subarray) - 1;
                 if(num_subarray_needed > num_ptrs_avail) {
-                    reallocPtrArray(num_subarray_needed - num_ptrs_avail, Side::BACK);
+                    realloc_ptr_array(num_subarray_needed - num_ptrs_avail, Side::BACK);
                 }
 
                 for(size_type i = 1; i <= num_subarray_needed; ++i) {
-                    m_end.m_subarray[i] = makeSubarray();
+                    m_end.m_subarray[i] = make_subarray();
                 }
             }
 
@@ -778,38 +821,38 @@ protected:
 
         // Reserve at least 1 uninitialized subarray ptr at both front and end
         const auto reserve_ptr_array_size = std::max(MIN_PTR_ARRAY_SIZE, new_ptr_array_size + 2);
-        resizePtrArray(reserve_ptr_array_size);
+        resize_ptr_array(reserve_ptr_array_size);
 
         auto offset = (reserve_ptr_array_size - new_ptr_array_size) / 2;
-        auto ptr_array_view = makeView(m_ptr_array, offset, new_ptr_array_size);
+        auto ptr_array_view = make_view(m_ptr_array, offset, new_ptr_array_size);
         for (auto& subarray : ptr_array_view) {
-            subarray = makeSubarray();
+            subarray = make_subarray();
         }
 
-        m_begin.setSubarray(ptr_array_view.data());
-        m_begin.m_current = m_begin.subBegin();
+        m_begin.set_subarray(ptr_array_view.data());
+        m_begin.m_current = m_begin.sub_begin();
 
-        m_end.setSubarray(ptr_array_view.data() + ptr_array_view.size() - 1);
-        m_end.m_current = std::next(m_end.subBegin(), n % SUBARRAY_SIZE);
+        m_end.set_subarray(ptr_array_view.data() + ptr_array_view.size() - 1);
+        m_end.m_current = std::next(m_end.sub_begin(), n % SUBARRAY_SIZE);
     }
 
-    void initWithValue(const value_type& value)
+    void init_with_value(const value_type& value)
     {
-        for (auto& subarray : makeView(m_begin.m_subarray, m_end.m_subarray)) {
+        for (auto& subarray : make_view(m_begin.m_subarray, m_end.m_subarray)) {
             std::uninitialized_fill(subarray->begin(), subarray->end(), value);
         }
-        std::uninitialized_fill(m_end.subBegin(), m_end.m_current, value);
+        std::uninitialized_fill(m_end.sub_begin(), m_end.m_current, value);
     }
 
     template <typename Iterator, typename = std::enable_if_t<is_input_iterator<Iterator>::value>>
-    void initWithIterator(Iterator first, Iterator last)
+    void init_with_iterator(Iterator first, Iterator last)
     {
-        initWithIterator(first, last, typename std::iterator_traits<Iterator>::iterator_category {});
+        init_with_iterator(first, last, typename std::iterator_traits<Iterator>::iterator_category {});
     }
 
     // iterator may be invalidated after one pass, so we can't use std::distance in this case
     template <typename InputIter>
-    void initWithIterator(InputIter first, InputIter last, std::input_iterator_tag)
+    void init_with_iterator(InputIter first, InputIter last, std::input_iterator_tag)
     {
         init(0);
         while (first != last) {
@@ -819,28 +862,28 @@ protected:
 
 
     template <typename ForwardIterator>
-    void initWithIterator(ForwardIterator first, ForwardIterator last, std::forward_iterator_tag)
+    void init_with_iterator(ForwardIterator first, ForwardIterator last, std::forward_iterator_tag)
     {
         init(std::distance(first, last));
-        for (auto& subarray : makeView(m_begin.m_subarray, m_end.m_subarray)) {
+        for (auto& subarray : make_view(m_begin.m_subarray, m_end.m_subarray)) {
             auto next = std::next(first, SUBARRAY_SIZE);
             std::uninitialized_copy(first, next, subarray->begin());
             first = next;
         }
 
-        std::uninitialized_copy(first, last, m_end.subBegin());
+        std::uninitialized_copy(first, last, m_end.sub_begin());
     }
 
-    size_type ptrArraySize() const
+    size_type ptr_array_size() const
     {
         return static_cast<size_type>(m_ptr_array.size());
     }
 
 protected:
     // Array of pointers to Subarrays
-    std::vector<SubarrayPtr, STLAllocator<SubarrayPtr>> m_ptr_array;
-    iterator m_begin;
-    iterator m_end;
+    std::vector<SubarrayPtr, STLAllocator<SubarrayPtr>> m_ptr_array {};
+    iterator m_begin {};
+    iterator m_end {};
 };
 
 }   // namespace detail
@@ -864,22 +907,22 @@ public:
     using typename base_type::difference_type;
 
     Deque() : base_type {0} {}
-    Deque(size_type n) : base_type {n} {}
+    explicit Deque(size_type n) : base_type {n} {}
 
     Deque(size_type n, const value_type& value) : base_type {n}
     {
-        this->initWithValue(value);
+        this->init_with_value(value);
     }
 
     template <typename InputIter>
     Deque(InputIter first, InputIter last)
     {
-        this->initWithIterator(first, last);
+        this->init_with_iterator(first, last);
     }
 
     Deque(std::initializer_list<value_type> values)
     {
-        this->initWithIterator(values.begin(), values.end());
+        this->init_with_iterator(values.begin(), values.end());
     }
 
     Deque(const this_type& rhs) : base_type { rhs.size() }
