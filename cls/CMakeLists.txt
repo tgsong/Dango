@@ -21,7 +21,7 @@ target_include_directories(libcls
 
 # Depend on a library that we defined in the top-level file
 target_link_libraries(libcls
-  INTERFACE libgsl
+  INTERFACE libgsl libthreads
 )
 
 #---------------------------------------------------------------------------------------------------

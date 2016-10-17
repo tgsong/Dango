@@ -23,10 +23,17 @@ endfunction()
 #---------------------------------------------------------------------------------------------------
 # Include necessary libraries as imported targets
 #---------------------------------------------------------------------------------------------------
+# C++ Guideline Support Library
 find_path(GSL_INCLUDE_DIRS gsl PATH_SUFFIXES GSL)
 add_library(libgsl INTERFACE IMPORTED)
 set_property(TARGET libgsl PROPERTY
   INTERFACE_INCLUDE_DIRECTORIES ${GSL_INCLUDE_DIRS}
+)
+
+find_package(Threads REQUIRED)
+add_library(libthreads INTERFACE IMPORTED)
+set_property(TARGET libthreads PROPERTY
+  INTERFACE_LINK_LIBRARIES Threads::Threads
 )
 
 find_package(Boost 1.59 REQUIRED COMPONENTS program_options timer chrono filesystem)
