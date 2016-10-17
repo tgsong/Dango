@@ -591,14 +591,51 @@ public:
             return m_begin;
         }
 
-        // TODO Implement emplace in the middle
-        throw std::runtime_error {"Insert value in the middle is not implemented yet."};
+        value_type value {std::forward<Args>(args)...};
+        auto iter_pos = pos.from_const();
+        const auto dist = iter_pos - m_begin;
+        if (dist < size() / 2) {
+            // insert in first half, shift elements to the left
+            emplace_front(*m_begin);
+
+            iter_pos = m_begin + dist;
+            auto old_beg = m_begin + 1;
+            const auto shift_beg = old_beg + 1;
+            const auto shift_end = iter_pos + 1;
+
+            old_beg.copy(shift_beg, shift_end);
+        } else {
+            // insert in second half, shift elements to the right
+            emplace_back(*(m_end - 1));
+
+            iter_pos = m_begin + dist;
+            auto old_end = m_end - 1;
+            const auto shift_end = old_end - 1;
+
+            old_end.copy_backward(iter_pos, shift_end);
+        }
+
+        *iter_pos = std::move(value);
+        return iter_pos;
     }
 
-    iterator erase(const_iterator /*pos*/)
+    iterator erase(const_iterator pos)
     {
-        // TODO implement erase(pos)
-        throw std::runtime_error {"erase value in any position is not implemented yet."};
+        auto iter_pos = pos.from_const();
+        auto iter_next = iter_pos + 1;
+        const auto dist = iter_pos - m_begin;
+
+        if (dist < size() / 2) {
+            // erase in first half, shift elements to the right
+            iter_next.copy_backward(m_begin, iter_pos);
+            pop_front();
+        } else {
+            // erase in second half, shift elements to the left
+            iter_pos.copy(iter_next, m_end);
+            pop_back();
+        }
+
+        return m_begin + dist;
     }
 
     iterator erase(const_iterator /*first*/, const_iterator /*last*/)
