@@ -26,6 +26,7 @@
 
 #include <cstddef>
 #include <vector>
+#include <algorithm>
 #include "cls/traits.hpp"
 #include "allocator.h"
 
@@ -33,7 +34,7 @@ CLS_BEGIN
 namespace detail {
 template <typename T>
 constexpr size_type DEFAULT_SUBARRAY_SIZE =
-    sizeof(T) <= 4 ? 64 : sizeof(T) <= 8 ? 32 : sizeof(T) <= 16 ? 16 : sizeof(T) <= 32 ? 8 : 4;
+    sizeof(T) <= 4 ? 512 : sizeof(T) <= 8 ? 256 : sizeof(T) <= 16 ? 128 : sizeof(T) <= 32 ? 64 : 32;
 constexpr size_type MIN_PTR_ARRAY_SIZE = 8;
 
 template <typename ContainerT>
@@ -253,7 +254,7 @@ struct DequeIterator {
     difference_type operator-(const DequeIterator<U, PointerU, ReferenceU, SUBARRAY_SIZE>& x) const
     {
         return SUBARRAY_SIZE * (m_subarray - x.m_subarray - 1) +
-            (m_current - x.sub_begin()) + (x.sub_end() - x.m_current);
+            (m_current - sub_begin()) + (x.sub_end() - x.m_current);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -514,9 +515,12 @@ public:
     void clear()
     {
         destruct(m_begin, m_end);
-        for (auto& subarray : make_view(m_begin.m_subarray + 1, m_end.m_subarray)) {
-            subarray.reset();
+        if (m_begin.m_subarray != m_end.m_subarray) {
+            for (auto& subarray : make_view(m_begin.m_subarray + 1, m_end.m_subarray)) {
+                subarray.reset();
+            }
         }
+
         m_end = m_begin;
     }
 
@@ -543,8 +547,63 @@ public:
             std::uninitialized_fill(m_end, new_end, v);
             m_end = new_end;
         } else {
-            // TODO insert values in the middle
-            throw std::runtime_error {"Insert values in the middle is not implemented yet."};
+            // Insert in the middle
+            const auto dist = pos - m_begin;
+            const auto deque_size = size();
+            const auto value = v;
+
+            if (dist < deque_size / 2) {
+                // Insert in front half
+                const auto iter_new_beg = realloc_subarray(n, Side::FRONT);
+                const auto iter_pos = m_begin + dist; // Reallocate subarray might invalidate iterators
+
+                if (n < dist) {
+                    // The old area can hold all inserted elements
+                    auto iter_copy_end = m_begin + n;
+
+                    // Shift left
+                    std::uninitialized_copy(
+                        std::make_move_iterator(m_begin),
+                        std::make_move_iterator(iter_copy_end),
+                        iter_new_beg);
+                    auto insert_begin = std::move(iter_copy_end, iter_pos, m_begin);
+                    std::fill(insert_begin, iter_pos, value);
+                } else {
+                    const auto mid = std::uninitialized_copy(
+                        std::make_move_iterator(m_begin),
+                        std::make_move_iterator(iter_pos),
+                        iter_new_beg);
+                    std::uninitialized_fill(mid, m_begin, value);
+                    std::fill(m_begin, iter_pos, value);
+                }
+                m_begin = iter_new_beg;
+            } else {
+                // Insert at back half
+                const auto iter_new_end = realloc_subarray(n, Side::BACK);
+                const auto dist_back = deque_size - dist;
+                const auto iter_pos = m_end - dist_back; // Reallocate subarray might invalidate iterators
+
+                if (n < dist_back) {
+                    auto iter_copy_end = m_end - n;
+
+                    // Shift right
+                    std::uninitialized_copy(
+                        std::make_move_iterator(iter_copy_end),
+                        std::make_move_iterator(m_end),
+                        m_end);
+                    auto insert_end = std::move_backward(iter_pos, iter_copy_end, m_end);
+                    std::fill(iter_pos, insert_end, value);
+                } else {
+                    auto mid = iter_pos + n;
+                    std::uninitialized_fill(m_end, mid, value);
+                    std::uninitialized_copy(
+                        std::make_move_iterator(iter_pos),
+                        std::make_move_iterator(m_end),
+                        mid);
+                    std::fill(iter_pos, m_end, value);
+                }
+                m_end = iter_new_end;
+            }
         }
 
         return pos.from_const();
@@ -566,8 +625,54 @@ public:
             std::uninitialized_copy(first, last, m_end);
             m_end = new_end;
         } else {
-            // TODO insert values in the middle
-            throw std::runtime_error {"Insert values in the middle is not implemented yet."};
+            // Insert in the middle
+            const auto dist = pos - m_begin;
+            const auto deque_size = size();
+
+            if (dist < deque_size / 2) {
+                // Insert in front half
+                const auto iter_new_beg = realloc_subarray(n, Side::FRONT);
+                const auto iter_pos = m_begin + dist; // Reallocate subarray might invalidate iterators
+
+                if (n < dist) {
+                    // The old area can hold all inserted elements
+                    auto iter_copy_end = m_begin + n;
+
+                    // Shift left, we can't use move here unless we could handle the situation where the
+                    // range to be inserted comes from this container and the segment we need to move.
+                    std::uninitialized_copy(m_begin, iter_copy_end, iter_new_beg);
+                    auto insert_begin = std::copy(iter_copy_end, iter_pos, m_begin);
+                    std::copy(first, last, insert_begin);
+                } else {
+                    auto mid = std::next(first, n - dist);
+
+                    const auto unin_mid = std::uninitialized_copy(m_begin, iter_pos, iter_new_beg);
+                    std::uninitialized_copy(first, mid, unin_mid);
+                    std::copy(mid, last, m_begin);
+                }
+                m_begin = iter_new_beg;
+            } else {
+                // Insert at back half
+                const auto iter_new_end = realloc_subarray(n, Side::BACK);
+                const auto dist_back = deque_size - dist;
+                const auto iter_pos = m_end - dist_back; // Reallocate subarray might invalidate iterators
+
+                if (n < dist_back) {
+                    auto iter_copy_end = m_end - n;
+
+                    // Shift right
+                    std::uninitialized_copy(iter_copy_end, m_end, m_end);
+                    auto insert_end = std::copy_backward(iter_pos, iter_copy_end, m_end);
+                    std::copy(first, last, iter_pos);
+                } else {
+                    auto mid = iter_pos + n;
+
+                    const auto unin_mid = std::uninitialized_copy(mid, last, m_end);
+                    std::uninitialized_copy(iter_pos, m_end, unin_mid);
+                    std::copy(first, mid, iter_pos);
+                }
+                m_end = iter_new_end;
+            }
         }
 
         return pos.from_const();
@@ -595,7 +700,7 @@ public:
         auto iter_pos = pos.from_const();
         const auto dist = iter_pos - m_begin;
         if (dist < size() / 2) {
-            // insert in first half, shift elements to the left
+            // Insert in front half, shift front elements to the left
             emplace_front(*m_begin);
 
             iter_pos = m_begin + dist;
@@ -605,7 +710,7 @@ public:
 
             old_beg.copy(shift_beg, shift_end);
         } else {
-            // insert in second half, shift elements to the right
+            // Insert in back half, shift back elements to the right
             emplace_back(*(m_end - 1));
 
             iter_pos = m_begin + dist;
@@ -626,11 +731,11 @@ public:
         const auto dist = iter_pos - m_begin;
 
         if (dist < size() / 2) {
-            // erase in first half, shift elements to the right
+            // Erase in front half, shift front elements to the right
             iter_next.copy_backward(m_begin, iter_pos);
             pop_front();
         } else {
-            // erase in second half, shift elements to the left
+            // Erase in back half, shift back elements to the left
             iter_pos.copy(iter_next, m_end);
             pop_back();
         }
@@ -638,10 +743,43 @@ public:
         return m_begin + dist;
     }
 
-    iterator erase(const_iterator /*first*/, const_iterator /*last*/)
+    iterator erase(const_iterator first, const_iterator last)
     {
-        // TODO implement erase(first, last)
-        throw std::runtime_error {"erase values in a range is not implemented yet."};
+        auto iter_first = first.from_const();
+        auto iter_last = last.from_const();
+
+        if (iter_first != m_begin || iter_last != m_end) {
+            const auto n = iter_last - iter_first;
+            const auto dist = iter_first - m_begin;
+
+            if (dist < (size() - n) / 2) {
+                // Erase in first half, shift front elements to the right
+                iter_last.copy_backward(m_begin, iter_first);
+
+                // clean-up
+                const auto iter_new_beg = m_begin + n;
+                const auto subarray_beg = m_begin.m_subarray;
+                while (m_begin != iter_new_beg) {
+                    m_begin.m_current->~value_type();
+                    ++m_begin;
+                }
+                free_subarrays(subarray_beg, iter_new_beg.m_subarray);
+            } else {
+                // Erase in second half, shift back elements to the left
+                iter_first.copy(iter_last, m_end);
+
+                // clean-up
+                auto iter_new_end = m_end - n;
+                for (auto it = iter_new_end; it != m_end; ++it) {
+                    it.m_current->~value_type();
+                }
+                free_subarrays(iter_new_end.m_subarray + 1, m_end.m_subarray + 1);
+                m_end = iter_new_end;
+            }
+        }
+
+        clear();
+        return m_end;
     }
 
     void push_back(const value_type& v)
@@ -762,10 +900,24 @@ protected:
         return std::make_unique<Subarray>();
     }
 
+    void free_subarrays(SubarrayPtr* first, SubarrayPtr* last)
+    {
+        while (first != last) {
+            (first++)->reset();
+        }
+    }
+
     void resize_ptr_array(size_type n)
     {
+        // Resize should not invalidate m_begin.m_subarray and m_end.m_subarray
+        auto dist_beg = m_begin.m_subarray - m_ptr_array.data();
+        auto dist_end = m_end.m_subarray - m_ptr_array.data();
+
         m_ptr_array.resize(n);
         m_ptr_array.shrink_to_fit();
+
+        m_begin.set_subarray(m_ptr_array.data() + dist_beg);
+        m_end.set_subarray(m_ptr_array.data() + dist_end);
     }
 
     void realloc_ptr_array(size_type ptr_count, Side side)
@@ -806,6 +958,8 @@ protected:
         m_end.set_subarray(std::next(new_ptr_array_begin, num_used_ptr - 1));
     }
 
+    // Reallocate subarrays at front or back, return the iterator pointed to new begin or end, you'll likely update
+    // old begin and end in subsequent operations
     iterator realloc_subarray(size_type capacity, Side side)
     {
         if (side == Side::FRONT) {
@@ -993,6 +1147,8 @@ public:
     this_type& operator=(std::initializer_list<value_type> rhs)
     {
         this->assign(rhs.begin(), rhs.end());
+
+        return *this;
     }
 };
 CLS_END
