@@ -28,50 +28,53 @@
 #include <boost/container/small_vector.hpp>
 #include <cls_ex/deque_x.h>
 
-struct Foo {
-    int b = 4;
-};
+void performance_test()
+{
+    clock_t start;
+    clock_t end;
 
-using Subarray = cls::detail::SubarrayT<Foo, 4>;
+
+    // My custom Deque
+
+    std::string str = "hello";
+    cls::Deque<std::string, 1 << 10> my_deque;
+
+    start = clock();
+    for (size_t i = 0; i < 1e6; i++)
+    {
+        my_deque.push_back(str);
+    }
+    my_deque.clear();
+    for (size_t i = 0; i < 1e6; i++)
+    {
+        my_deque.push_front(str);
+    }
+
+    end = clock();
+    printf("My deque       %f\n", (double(end - start) / 1000));
+
+    // Standard
+
+    std::deque<std::string> std_container;
+
+    start = clock();
+    for (size_t i = 0; i < 1e6; i++)
+    {
+        std_container.push_back(str);
+    }
+    std_container.clear();
+    for (size_t i = 0; i < 1e6; i++)
+    {
+        std_container.push_front(str);
+    }
+
+    end = clock();
+    printf("Standard %f\n", (double(end - start) / 1000));
+}
 
 int main(/*int argc, char* argv[]*/)
 {
-    auto init = {1, 2, 3, 4, 5};
-    cls::Deque<int> d1 {init.begin(), init.end()};
-    cls::Deque<int> d2 {1, 2};
-    cls::Deque<int> d3 {d2};
-    d3 = std::move(d2);
-    d3.assign(10, 1);
-
-    std::cout << d3.size() << std::endl;
-    d3.clear();
-
-    d1.begin().copy(d2.begin(), d2.end());
-
-//    for (auto i = 0; i < 1e5; ++i) {
-//        d3.emplace_back(i);
-//    }
-    {
-        std::vector<Foo, cls::STLAllocator<Foo>> vec(1);
-        vec.resize(4);
-        vec.resize(8);
-    }
-
-    boost::container::small_vector<std::future<void>, 8> tasks;
-    for (int i = 0; i < 1; ++i) {
-        tasks.emplace_back(std::async(std::launch::async, [](){
-            std::vector<std::unique_ptr<Subarray>> m_ptr_array;
-            m_ptr_array.resize(2);
-            for (auto& elem : m_ptr_array) {
-                elem = std::make_unique<Subarray>();
-                elem->construct(0);
-                elem->destruct(0);
-            }
-        }));
-    }
-    for (auto& elem : tasks) {
-        elem.get();
-    }
+    performance_test();
 
     return 0;
 }
