@@ -552,7 +552,7 @@ public:
             const auto deque_size = size();
             const auto value = v;
 
-            if (dist < deque_size / 2) {
+            if (dist <= deque_size / 2) {
                 // Insert in front half
                 const auto iter_new_beg = realloc_subarray(n, Side::FRONT);
                 const auto iter_pos = m_begin + dist; // Reallocate subarray might invalidate iterators
@@ -629,7 +629,7 @@ public:
             const auto dist = pos - m_begin;
             const auto deque_size = size();
 
-            if (dist < deque_size / 2) {
+            if (dist <= deque_size / 2) {
                 // Insert in front half
                 const auto iter_new_beg = realloc_subarray(n, Side::FRONT);
                 const auto iter_pos = m_begin + dist; // Reallocate subarray might invalidate iterators
@@ -662,10 +662,10 @@ public:
 
                     // Shift right
                     std::uninitialized_copy(iter_copy_end, m_end, m_end);
-                    auto insert_end = std::copy_backward(iter_pos, iter_copy_end, m_end);
+                    std::copy_backward(iter_pos, iter_copy_end, m_end);
                     std::copy(first, last, iter_pos);
                 } else {
-                    auto mid = iter_pos + n;
+                    auto mid = first + dist_back;
 
                     const auto unin_mid = std::uninitialized_copy(mid, last, m_end);
                     std::uninitialized_copy(iter_pos, m_end, unin_mid);
@@ -776,6 +776,8 @@ public:
                 free_subarrays(iter_new_end.m_subarray + 1, m_end.m_subarray + 1);
                 m_end = iter_new_end;
             }
+
+            return m_begin + dist;
         }
 
         clear();
@@ -1123,7 +1125,7 @@ public:
 
     Deque(this_type&& rhs) : base_type {0}
     {
-        swap(rhs);
+        this->swap(rhs);
     }
 
     this_type& operator=(const this_type& rhs)
@@ -1152,3 +1154,11 @@ public:
     }
 };
 CLS_END
+
+namespace std {
+template <typename T, cls::size_type SUBARRAY_SIZE>
+void swap(cls::Deque<T, SUBARRAY_SIZE>& lhs, cls::Deque<T, SUBARRAY_SIZE>& rhs)
+{
+    lhs.swap(rhs);
+}
+}
