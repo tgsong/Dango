@@ -108,6 +108,23 @@ void dealloc_array(Alloc& alloc, gsl::span<T> array)
     dealloc_array<T>(&alloc, array);
 }
 
+template<typename T, typename... Args>
+void construct(T* p, Args&&... args)
+{
+    ::new((void *)p) T {std::forward<Args>(args)...};
+}
+
+template<typename T>
+auto destroy(T*) -> std::enable_if_t<std::is_trivially_destructible<T>::value>
+{
+}
+
+template<typename T>
+auto destroy(T* p) -> std::enable_if_t<!std::is_trivially_destructible<T>::value>
+{
+    p->~T();
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Allocator interface
 class Allocator {

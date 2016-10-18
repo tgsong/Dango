@@ -89,34 +89,6 @@ public:
         dealloc_memory(ActiveAllocator::get(), p, size_of<SubarrayT>);
     }
 
-    template <typename... Args>
-    void construct(T* pos, Args&&... args)
-    {
-#ifndef NDEBUG
-        assert(m_storage.get() <= pos && pos < m_storage.get() + SIZE);
-#endif
-        ::new(pos) T {std::forward<Args>(args)...};
-    }
-
-    template <typename... Args>
-    void construct(int idx, Args&&... args)
-    {
-        construct(m_storage.get() + idx, std::forward<Args>(args)...);
-    }
-
-    void destruct(T* pos)
-    {
-#ifndef NDEBUG
-        assert(m_storage.get() <= pos && pos < m_storage.get() + SIZE);
-#endif
-        pos->~T();
-    }
-
-    void destruct(int idx)
-    {
-        destruct(m_storage.get() + idx);
-    }
-
     T* data() { return m_storage.get(); }
 
     T* begin() { return m_storage.get(); }
@@ -145,27 +117,17 @@ struct DequeIterator {
     friend struct DequeIterator;
 
     template <typename, size_type>
-    friend struct DequeImpl;
+    friend class DequeImpl;
 
     template <typename, size_type>
-    friend struct Deque;
+    friend class Deque;
 
     DequeIterator() = default;
 
-    // Template trick to support construct/assign const_iterator from iterator
-    template <typename Iterator = iterator, typename = std::enable_if_t<
-            std::is_same<Iterator, iterator>::value &&
-            std::is_same<this_type, const_iterator>::value>>
-    DequeIterator(const iterator& rhs) : m_current {rhs.m_current}, m_subarray {rhs.m_subarray} {}
-
-    template <typename Iterator = iterator, typename = std::enable_if_t<
-            std::is_same<Iterator, iterator>::value &&
-            std::is_same<this_type, const_iterator>::value>>
-    DequeIterator& operator=(const iterator& rhs)
+    // Support construct/assign const_iterator from iterator
+    operator const_iterator()
     {
-        m_current = rhs.m_current;
-        m_subarray = rhs.m_subarray;
-        return *this;
+        return const_iterator {m_current, m_subarray};
     }
 
     auto operator->() const -> pointer { return m_current; }
@@ -760,7 +722,7 @@ public:
                 const auto iter_new_beg = m_begin + n;
                 const auto subarray_beg = m_begin.m_subarray;
                 while (m_begin != iter_new_beg) {
-                    m_begin.m_current->~value_type();
+                    destroy(m_begin.m_current);
                     ++m_begin;
                 }
                 free_subarrays(subarray_beg, iter_new_beg.m_subarray);
@@ -771,7 +733,7 @@ public:
                 // clean-up
                 auto iter_new_end = m_end - n;
                 for (auto it = iter_new_end; it != m_end; ++it) {
-                    it.m_current->~value_type();
+                    destroy(it.m_current);
                 }
                 free_subarrays(iter_new_end.m_subarray + 1, m_end.m_subarray + 1);
                 m_end = iter_new_end;
@@ -799,7 +761,7 @@ public:
     {
         if (std::next(m_end.m_current) != m_end.sub_end()) {
             // If we have room in the last subarray
-            m_end.subarray()->construct(m_end.m_current++, std::forward<Args>(args)...);
+            construct(m_end.m_current++, std::forward<Args>(args)...);
         } else {
             // We need to make a copy because args may come from this container and
             // operation below may change the container
@@ -812,7 +774,7 @@ public:
 
             *std::next(m_end.m_subarray) = make_subarray();
 
-            m_end.subarray()->construct(m_end.m_current, std::move(tmp));
+            construct(m_end.m_current, std::move(tmp));
             m_end.set_subarray(std::next(m_end.m_subarray));
             m_end.m_current = m_end.sub_begin();
         }
@@ -821,11 +783,11 @@ public:
     void pop_back()
     {
         if (m_end.m_current != m_end.sub_begin()) {
-            (--m_end.m_current)->~value_type();
+            destroy(--m_end.m_current);
         } else {
             (m_end.m_subarray--)->reset();
             m_end.m_current = std::prev(m_end.sub_end());
-            m_end.m_current->~value_type();
+            destroy(m_end.m_current);
         }
     }
 
@@ -844,7 +806,7 @@ public:
     {
         if (m_begin.m_current != m_begin.sub_begin()) {
             // If we have room in the last subarray
-            m_begin.subarray()->construct(--m_begin.m_current, std::forward<Args>(args)...);
+            construct(--m_begin.m_current, std::forward<Args>(args)...);
         } else {
             // We need to make a copy because args may come from this container and
             // operation below may change the container
@@ -859,16 +821,16 @@ public:
 
             m_begin.set_subarray(std::prev(m_begin.m_subarray));
             m_begin.m_current = std::prev(m_begin.sub_end());
-            m_begin.subarray()->construct(m_begin.m_current, std::move(tmp));
+            construct(m_begin.m_current, std::move(tmp));
         }
     }
 
     void pop_front()
     {
         if (std::next(m_begin.m_current) != m_begin.sub_end()) {
-            (m_begin.m_current++)->~value_type();
+            destroy(m_begin.m_current++);
         } else {
-            m_begin.m_current->~value_type();
+            destroy(m_begin.m_current);
             (m_begin.m_subarray++)->reset();
             m_begin.m_current = m_begin.sub_begin();
         }
@@ -889,7 +851,7 @@ public:
         }
     }
 
-    void swap(this_type& rhs)
+    void swap(this_type& rhs) noexcept
     {
         std::swap(m_ptr_array, rhs.m_ptr_array);
         std::swap(m_begin, rhs.m_begin);
@@ -1004,7 +966,7 @@ protected:
     void destruct(iterator first, iterator last)
     {
         while (first != last) {
-            (first++)->~value_type();
+            destroy((first++).m_current);
         }
     }
 
@@ -1123,7 +1085,7 @@ public:
         std::uninitialized_copy(rhs.m_begin, rhs.m_end, this->m_begin);
     }
 
-    Deque(this_type&& rhs) : base_type {0}
+    Deque(this_type&& rhs) noexcept : base_type {0}
     {
         this->swap(rhs);
     }
@@ -1137,7 +1099,7 @@ public:
         return *this;
     }
 
-    this_type& operator=(this_type&& rhs)
+    this_type& operator=(this_type&& rhs) noexcept
     {
         if (&rhs != this) {
             this->swap(rhs);
@@ -1157,7 +1119,7 @@ CLS_END
 
 namespace std {
 template <typename T, cls::size_type SUBARRAY_SIZE>
-void swap(cls::Deque<T, SUBARRAY_SIZE>& lhs, cls::Deque<T, SUBARRAY_SIZE>& rhs)
+void swap(cls::Deque<T, SUBARRAY_SIZE>& lhs, cls::Deque<T, SUBARRAY_SIZE>& rhs) noexcept
 {
     lhs.swap(rhs);
 }
